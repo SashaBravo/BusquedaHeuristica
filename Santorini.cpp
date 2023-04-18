@@ -6,11 +6,11 @@ using namespace std;
 uint32_t empty=0x0;
 uint32_t full=0x1f1f1f;
 
-uint32_t firstRow=0xf0000000;
-uint32_t lastRow=0x000f0000;
-uint32_t borde=0xf99f0000;
-uint32_t firstCol=0x88880000;
-uint32_t lastCol=0x1111000;
+uint32_t firstRow=0xf8000000;
+uint32_t lastRow=0x00000f80;
+uint32_t borde=0xfc631f80;
+uint32_t firstCol=0x84210842;
+uint32_t lastCol=0x08421084;
 
 
 
@@ -40,22 +40,37 @@ std::string clear_color = "\033[0m";
 */
 
 
-void print(uint32_t board, GameState game){
+void print(uint32_t board, GameState game, bool vecinos){
     uint32_t one=0x80000000;
     for(int i=0;i<25;i++){
         if(one&board){
-            if(one&game.Player1)
-            {
-                std::cout<<"o";
-            }
 
-            if(one&game.Player2)
+            if(!vecinos)
             {
-                std::cout<<"x";
+                if(one&game.Player1)
+                {
+                    std::cout<<"o";
+                }
+
+                if(one&game.Player2)
+                {
+                    std::cout<<"x";
+                }
+            }
+            else
+            {
+                if(one&~game.FullBoard)
+                {
+                    std::cout<<"v";
+                }
+                else{
+                    std::cout<<"f";
+                }
+                
             }
             
-            
-        }else{
+        }
+        else{
             std::cout<<"-";
         }
         if(i%5==4){
@@ -69,9 +84,15 @@ void print(uint32_t board, GameState game){
 uint32_t vecinos(uint32_t board){
     uint32_t vecinoDerecha=(board&~lastCol)>>1;
     uint32_t vecinoIzquierda=(board&~firstCol)<<1;
+    
     uint32_t vecinoArriba=(board&~firstRow)<<5;
+    uint32_t vecinoArribaD=(board&~firstRow&~lastCol)<<4;
+    uint32_t vecinoArribaI=(board&~firstRow&~firstCol)<<6;
+    
     uint32_t vecinoAbajo=(board&~lastRow)>>5;
-    return vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoAbajo;
+    uint32_t vecinoAbajoD=(board&~lastRow&~lastCol)>>6;
+    uint32_t vecinoAbajoI=(board&~lastRow&~firstCol)>>4;
+    return vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI;
 
 }
 
@@ -83,7 +104,7 @@ int main(){
 
     bool Turno1 = true;
     bool Colocacion = true;
-    bool Jugando = false;
+    bool Jugando = true;
 
     //Colocacion de Jugadores
     
@@ -115,9 +136,6 @@ int main(){
                 }
                 
             }
-            
-
-            print(game.FullBoard, game);
 
             Turno1 = false;
         }
@@ -146,7 +164,7 @@ int main(){
             }
             
 
-            print(game.FullBoard, game);
+            
 
 
             Turno1 = true;
@@ -160,18 +178,48 @@ int main(){
             }
         }
 
+        print(game.FullBoard, game, false);
     }
 
 
 
     //Juego
-/*
+
     while (Jugando)
     {
         //Jugador 1
         if(Turno1){
-            //Mover Ficha 
 
+            //Escoger Ficha
+            while (true)
+            {
+                std::cout<<"Escoga una de las fichas del Jugador 1: ";
+                int i,j;
+                std::cin>>i>>j;
+
+                uint32_t bitMap1 = 0x80000000>>(j*5+i);
+
+                //Ver vecinos
+
+                if (game.Player1&bitMap1)
+                {
+                    
+                    //Mover Ficha 
+
+                    std::cout<<"Estos son tus posibles movimientos: ";
+                    std::cout<<std::endl;
+
+                    auto veci = vecinos(bitMap1);
+
+                    print(veci, game, true);
+
+                }
+
+                else{
+                    std::cout<<"No existe una ficha del Jugador 1 ahi.";
+                    std::cout<<std::endl;
+                }
+            }
 
 
             //Poner Piso
@@ -193,7 +241,7 @@ int main(){
 
         }
     }
-    */
+    
     
 
 
