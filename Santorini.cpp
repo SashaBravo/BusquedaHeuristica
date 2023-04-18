@@ -26,14 +26,34 @@ struct GameState
     uint32_t Floor4=0x0;
 };
 
+/*
+//Colores
+std::string red = "\033[1;31m";
+std::string green = "\033[1;32m";
+std::string cyan = "\033[1;36m";
+
+std::string cyan_b = "\033[46m";  //Camino disponible
+std::string white_b = "\033[47m"; //Muros
+
+std::string clear_color = "\033[0m"; 
+
+*/
 
 
-
-void print(uint32_t board){
+void print(uint32_t board, GameState game){
     uint32_t one=0x80000000;
     for(int i=0;i<25;i++){
         if(one&board){
-            std::cout<<"o";
+            if(one&game.Player1)
+            {
+                std::cout<<"o";
+            }
+
+            if(one&game.Player2)
+            {
+                std::cout<<"x";
+            }
+            
             
         }else{
             std::cout<<"-";
@@ -54,12 +74,16 @@ uint32_t vecinos(uint32_t board){
     return vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoAbajo;
 
 }
+
+
+
 int main(){
 
     GameState game;
 
     bool Turno1 = true;
     bool Colocacion = true;
+    bool Jugando = false;
 
     //Colocacion de Jugadores
     
@@ -68,22 +92,61 @@ int main(){
     {
         if(Turno1){
 
-            std::cout<<"Ingrese coordenadas Jugador 1: ";
-            int i,j;
-            std::cin>>i>>j;
-            game.Player1 |= 0x80000000>>(j*5+i);
-            print(game.Player1);
+            
+
+            while (true)
+            {
+                std::cout<<"Ingrese coordenadas Jugador 1: ";
+                int i,j;
+                std::cin>>i>>j;
+            
+                if (game.FullBoard != (game.FullBoard |= 0x80000000>>(j*5+i)))
+                {
+                    game.Player1 |= 0x80000000>>(j*5+i);
+
+                    game.FullBoard |= game.Player1;
+
+                    break;
+                }
+
+                else{
+                    std::cout<<"ya hay una ficha ahi";
+                    std::cout<<std::endl;
+                }
+                
+            }
+            
+
+            print(game.FullBoard, game);
 
             Turno1 = false;
         }
         
         else{
             
-            std::cout<<"Ingrese coordenadas Jugador 2: ";
-            int i,j;
-            std::cin>>i>>j;
-            game.Player2 |= 0x80000000>>(j*5+i);
-            print(game.Player2);
+
+            while (true)
+            {
+                std::cout<<"Ingrese coordenadas Jugador 2: ";
+                int i,j;
+                std::cin>>i>>j;
+                if (game.FullBoard != (game.FullBoard |= 0x80000000>>(j*5+i)))
+                {
+                    game.Player2 |= 0x80000000>>(j*5+i);
+
+                    game.FullBoard |= game.Player2;
+
+                    break;
+                }
+
+                else{
+                    std::cout<<"ya hay una ficha ahi";
+                    std::cout<<std::endl;
+                }
+            }
+            
+
+            print(game.FullBoard, game);
 
 
             Turno1 = true;
@@ -98,11 +161,47 @@ int main(){
         }
 
     }
+
+
+
+    //Juego
+/*
+    while (Jugando)
+    {
+        //Jugador 1
+        if(Turno1){
+            //Mover Ficha 
+
+
+
+            //Poner Piso
+
+
+
+        }
+
+
+        //Jugador 2
+        else{
+            //Mover Ficha 
+
+
+
+            //Poner Piso
+
+
+
+        }
+    }
+    */
     
+
+
+
 
     //print(firstRow);
     //print(lastRow);
-
+/*
 //Imprimendo Columnas
     // uint32_t col1=0x84210842;
     // print(col1);
@@ -159,8 +258,7 @@ int main(){
 
     //print(veci);
     //std::cout<<"Tiene "<<__builtin_popcount(veci)<<" piezas"<<std::endl;
-
-
+*/
 
     return 0;
 
