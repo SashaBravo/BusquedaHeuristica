@@ -1,6 +1,25 @@
 #include <iostream>
 using namespace std;
 
+#define RESET "\033[0m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define BLUE "\033[34m"
+#define MAGENTA "\033[35m"
+#define CYAN "\033[36m"
+#define WHITE "\033[37m"
+#define BG_BLACK "\033[40m"
+#define BG_RED "\033[41m"
+#define BG_GREEN "\033[42m"
+#define BG_YELLOW "\033[43m"
+#define BG_BLUE "\033[44m"
+#define BG_MAGENTA "\033[45m"
+#define BG_CYAN "\033[46m"
+#define BG_WHITE "\033[47m"
+#define BOLD "\033[1m"
+#define ITALIC "\033[3m"
+#define UNDERLINE "\033[4m"
 
 //tablero de 5x5, 32 bits
 uint32_t empty=0x0;
@@ -43,40 +62,73 @@ std::string clear_color = "\033[0m";
 void print(uint32_t board, GameState game, bool vecinos){
     uint32_t one=0x80000000;
     for(int i=0;i<25;i++){
+        cout << BG_BLACK;
+        if(one&game.Floor1){
+        cout<<BG_MAGENTA;
+        }
+        if(one&game.Floor2){
+        cout<<BG_YELLOW;
+        }
+        if(one&game.Floor3){
+        cout<<BG_WHITE;
+        }
+        if(one&game.Floor4){
+        cout<<BG_CYAN;
+        }
+        cout << "[";
         if(one&board){
 
             if(!vecinos)
             {
                 if(one&game.Player1)
                 {
-                    std::cout<<"o";
+                    std::cout<<BLUE<<"o"<< RESET << BG_BLACK;
                 }
 
-                if(one&game.Player2)
+                 if(one&game.Player2)
                 {
-                    std::cout<<"x";
+                    std::cout<<BLUE<<"x"<< RESET << BG_BLACK;
                 }
+
+                //else { std::cout<<BLUE<<" " << RESET << BG_BLACK;}
             }
             else
             {
                 if(one&~game.FullBoard)
                 {
-                    std::cout<<"v";
+                    std::cout<<GREEN<<"v"<< RESET << BG_BLACK;
                 }
                 else{
-                    std::cout<<"f";
+                    std::cout<< RED<<"f"<< RESET << BG_BLACK;
                 }
                 
             }
+
             
         }
         else{
-            std::cout<<"-";
+            std::cout<<" "<< RESET << BG_BLACK;
         }
+
+        if(one&game.Floor1){
+        cout<<BG_MAGENTA;
+        }
+        if(one&game.Floor2){
+        cout<<BG_YELLOW;
+        }
+        if(one&game.Floor3){
+        cout<<BG_WHITE;
+        }
+        if(one&game.Floor4){
+        cout<<BG_CYAN;
+        }
+
+        cout << "]";
         if(i%5==4){
-            std::cout<<std::endl;
+            std::cout<<RESET<<std::endl;
         }
         one >>= 1;
+        
     }
     std::cout<<std::endl;
 }
@@ -95,12 +147,34 @@ uint32_t vecinos(uint32_t board, GameState game){
     return (vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI)&~game.FullBoard;
 
 }
+void Building(uint32_t& Player_board, GameState& game_){
 
-void Move(uint32_t Player_board, GameState &game)
+    uint32_t veci = 0x0;
+
+    veci = vecinos(Player_board, game_);
+    print(veci, game_, true);
+    
+
+    std::cout<<"Seleccione donde construir: ";
+    int i,j;
+    std::cin>>i>>j;
+    uint32_t moveP = 0x80000000>>(j*5+i);
+    if(moveP&veci)
+    {
+        game_.Floor1|= moveP;
+        //game_.FullBoard|= game_.Floor1;
+    }
+    else{
+        cout <<" "<< endl;
+    }
+    cout << "-------------" << endl;
+    print(game_.FullBoard, game_, false);
+}
+
+void Move(uint32_t& Player_board, GameState& game_, uint32_t& veci)
 {
-    auto veci = 0x0;
 
-    do{
+    while(true){
             
         std::cout<<"Seleccione un movimiento: ";
         int i,j;
@@ -108,8 +182,9 @@ void Move(uint32_t Player_board, GameState &game)
 
         uint32_t moveP = 0x80000000>>(j*5+i);
 
-        veci = vecinos(Player_board, game);
         //Ver vecinos
+        //print(game_.Player1, game_, false);
+        //print(game_.Player2, game_, false);
 
         if (moveP&veci)
         {
@@ -117,9 +192,11 @@ void Move(uint32_t Player_board, GameState &game)
             std::cout<<std::endl;
             
             Player_board|= moveP;
-            game.FullBoard|= Player_board;
+            game_.FullBoard|= Player_board;
 
-            print(game.FullBoard, game, false); 
+            print(game_.FullBoard, game_, false); 
+            cout << "Build" << endl;
+            Building(moveP,game_);
             break;
 
         }
@@ -129,15 +206,15 @@ void Move(uint32_t Player_board, GameState &game)
             std::cout<<std::endl;
         }
                 
-    }while(true);
+    }
 }
 
-void SelectToken(uint32_t Player_board, GameState &game){
-
-    auto veci = 0x0;
+void SelectToken(uint32_t& Player_board, GameState& game_)
+{
+    uint32_t veci = 0x0;
     while (true)
     {
-        std::cout<<"Escoga una de las fichas del Jugador 1: ";
+        std::cout<<"Escoga una de las fichas del Jugador: ";
         int i,j;
         std::cin>>i>>j;
 
@@ -150,19 +227,18 @@ void SelectToken(uint32_t Player_board, GameState &game){
             std::cout<<"Estos son tus posibles movimientos: ";
             std::cout<<std::endl;
 
-            veci = vecinos(bitMap, game);
+            veci = vecinos(bitMap, game_);
 
-            print(veci, game, true);
+            print(veci, game_, true);
 
             Player_board^=bitMap;
-            game.FullBoard^=bitMap;
-
+            game_.FullBoard^=bitMap;
+            Move(Player_board, game_, veci);
             break;
-
         }
 
         else{
-            std::cout<<"No existe una ficha del Jugador 1 ahi.";
+            std::cout<<"No existe una ficha del Jugador ahi.";
             std::cout<<std::endl;
         }
     }
@@ -170,7 +246,8 @@ void SelectToken(uint32_t Player_board, GameState &game){
 
 int main(){
 
-    GameState* game;
+    GameState game;
+    //GameState* game_ = &game;
 
     bool Turno1 = true;
     bool Colocacion = true;
@@ -250,10 +327,19 @@ int main(){
     while (Jugando)
     {
         //Jugador 1
-        SelectToken(game.Player1, game);
-        Move(game.Player1, game);
 
-        print(game.FullBoard, game, false);
+        if(Turno1){
+            std::cout<<"Jugador 1.";
+        SelectToken(game.Player1, game);
+        Turno1 = false;
+        }else{
+            std::cout<<"Jugador 2.";
+        SelectToken(game.Player2, game);
+        //print(game.FullBoard, game, false);
+        //Move(game.Player2, game);
+        Turno1 = true;
+        }
+                   
         /*
         if(Turno1){
 
@@ -403,6 +489,7 @@ int main(){
 
 
         }*/
+
     }
     
     
