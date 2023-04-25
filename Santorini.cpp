@@ -28,14 +28,14 @@ struct GameState
 
 /*
 //Colores
-std::string red = "\033[1;31m";
-std::string green = "\033[1;32m";
-std::string cyan = "\033[1;36m";
+std::string red = "\033[1;31m";     //Piso0
+std::string green = "\033[1;32m";   //Piso1
+std::string cyan = "\033[1;36m";    //Piso2
 
-std::string cyan_b = "\033[46m";  //Camino disponible
-std::string white_b = "\033[47m"; //Muros
+std::string cyan_b = "\033[46m";    //Piso3
+std::string white_b = "\033[47m";   //Piso4
 
-std::string clear_color = "\033[0m"; 
+std::string clear_color = "\033[0m";
 
 */
 
@@ -81,7 +81,7 @@ void print(uint32_t board, GameState game, bool vecinos){
     std::cout<<std::endl;
 }
 
-uint32_t vecinos(uint32_t board){
+uint32_t vecinos(uint32_t board, GameState game){
     uint32_t vecinoDerecha=(board&~lastCol)>>1;
     uint32_t vecinoIzquierda=(board&~firstCol)<<1;
     
@@ -92,7 +92,7 @@ uint32_t vecinos(uint32_t board){
     uint32_t vecinoAbajo=(board&~lastRow)>>5;
     uint32_t vecinoAbajoD=(board&~lastRow&~lastCol)>>6;
     uint32_t vecinoAbajoI=(board&~lastRow&~firstCol)>>4;
-    return vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI;
+    return (vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI)&~game.FullBoard;
 
 }
 
@@ -190,6 +190,8 @@ int main(){
         //Jugador 1
         if(Turno1){
 
+            auto veci = 0x0;
+
             //Escoger Ficha
             while (true)
             {
@@ -203,15 +205,17 @@ int main(){
 
                 if (game.Player1&bitMap1)
                 {
-                    
-                    //Mover Ficha 
-
                     std::cout<<"Estos son tus posibles movimientos: ";
                     std::cout<<std::endl;
 
-                    auto veci = vecinos(bitMap1);
+                    veci = vecinos(bitMap1, game);
 
                     print(veci, game, true);
+
+                    game.Player1^=bitMap1;
+                    game.FullBoard^=bitMap1;
+
+                    break;
 
                 }
 
@@ -220,6 +224,39 @@ int main(){
                     std::cout<<std::endl;
                 }
             }
+
+            //Mover Ficha 
+            while (true)
+            {
+                std::cout<<"Seleccione un movimiento: ";
+                int i,j;
+                std::cin>>i>>j;
+
+                uint32_t moveP1 = 0x80000000>>(j*5+i);
+
+                //Ver vecinos
+
+                if (moveP1&veci)
+                {
+                    std::cout<<"Estos son tus posibles movimientos: ";
+                    std::cout<<std::endl;
+
+                    game.Player1|= moveP1;
+                    game.FullBoard|= game.Player1;
+
+                    print(game.FullBoard, game, false); 
+
+                    break;
+
+                }
+
+                else{
+                    std::cout<<"Moviemiento no valido";
+                    std::cout<<std::endl;
+                }
+            }
+
+            
 
 
             //Poner Piso
@@ -258,56 +295,5 @@ int main(){
     // print(col2);
 
     // uint32_t col3=0x21084210;
-    // print(col3);
-
-    // uint32_t col4=0x10842108;
-    // print(col4);
-
-    // uint32_t col5=0x08421084;
-    // print(col5);
-
-
-//Imprimendo Filas
-    // uint32_t row1=0xf8000000;
-    // print(row1);
-
-    // uint32_t row2=0x07c00000;
-    // print(row2);
-
-    // uint32_t row3=0x003e0000;
-    // print(row3);
-
-    // uint32_t row4=0x0001f000;
-    // print(row4);
-
-    // uint32_t row5=0x00000f80;
-    // print(row5);
-
-    //auto veci=vecinos(tab);
-    // print(veci);
-    // print(vecinos(0x0400));
-
-    //print(full&~0x0400);
-
-    //auto veci=vecinos(0x0400);
-    
-    // std::cout<<"inicial:"<<std::endl;
-    // print(veci);
-
-    // while(veci){
-    //     auto i=16-__builtin_ffs(veci);
-    //     uint16_t v = 0x8000>>i;
-    //     std::cout<<"vecino:"<<std::endl;
-    //     print(v);
-    //     veci^=v;
-
-    // }
-
-
-    //print(veci);
-    //std::cout<<"Tiene "<<__builtin_popcount(veci)<<" piezas"<<std::endl;
 */
-
-    return 0;
-
 }
