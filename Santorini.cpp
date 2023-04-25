@@ -96,11 +96,81 @@ uint32_t vecinos(uint32_t board, GameState game){
 
 }
 
+void Move(uint32_t Player_board, GameState &game)
+{
+    auto veci = 0x0;
 
+    do{
+            
+        std::cout<<"Seleccione un movimiento: ";
+        int i,j;
+        std::cin>>i>>j;
+
+        uint32_t moveP = 0x80000000>>(j*5+i);
+
+        veci = vecinos(Player_board, game);
+        //Ver vecinos
+
+        if (moveP&veci)
+        {
+            std::cout<<"Estos son tus posibles movimientos: ";
+            std::cout<<std::endl;
+            
+            Player_board|= moveP;
+            game.FullBoard|= Player_board;
+
+            print(game.FullBoard, game, false); 
+            break;
+
+        }
+
+        else{
+            std::cout<<"Moviemiento no valido";
+            std::cout<<std::endl;
+        }
+                
+    }while(true);
+}
+
+void SelectToken(uint32_t Player_board, GameState &game){
+
+    auto veci = 0x0;
+    while (true)
+    {
+        std::cout<<"Escoga una de las fichas del Jugador 1: ";
+        int i,j;
+        std::cin>>i>>j;
+
+        uint32_t bitMap = 0x80000000>>(j*5+i);
+
+        //Ver vecinos
+
+        if (Player_board&bitMap)
+        {
+            std::cout<<"Estos son tus posibles movimientos: ";
+            std::cout<<std::endl;
+
+            veci = vecinos(bitMap, game);
+
+            print(veci, game, true);
+
+            Player_board^=bitMap;
+            game.FullBoard^=bitMap;
+
+            break;
+
+        }
+
+        else{
+            std::cout<<"No existe una ficha del Jugador 1 ahi.";
+            std::cout<<std::endl;
+        }
+    }
+}
 
 int main(){
 
-    GameState game;
+    GameState* game;
 
     bool Turno1 = true;
     bool Colocacion = true;
@@ -112,9 +182,6 @@ int main(){
     while (Colocacion)
     {
         if(Turno1){
-
-            
-
             while (true)
             {
                 std::cout<<"Ingrese coordenadas Jugador 1: ";
@@ -133,8 +200,7 @@ int main(){
                 else{
                     std::cout<<"ya hay una ficha ahi";
                     std::cout<<std::endl;
-                }
-                
+                }   
             }
 
             Turno1 = false;
@@ -162,10 +228,6 @@ int main(){
                     std::cout<<std::endl;
                 }
             }
-            
-
-            
-
 
             Turno1 = true;
 
@@ -188,6 +250,11 @@ int main(){
     while (Jugando)
     {
         //Jugador 1
+        SelectToken(game.Player1, game);
+        Move(game.Player1, game);
+
+        print(game.FullBoard, game, false);
+        /*
         if(Turno1){
 
             auto veci = 0x0;
@@ -245,7 +312,7 @@ int main(){
                     game.FullBoard|= game.Player1;
 
                     print(game.FullBoard, game, false); 
-
+                    Turno1 = false;
                     break;
 
                 }
@@ -254,10 +321,8 @@ int main(){
                     std::cout<<"Moviemiento no valido";
                     std::cout<<std::endl;
                 }
+                
             }
-
-            
-
 
             //Poner Piso
 
@@ -268,15 +333,76 @@ int main(){
 
         //Jugador 2
         else{
+
+             auto veci = 0x0;
+
+            //Escoger Ficha
+            while (true)
+            {
+                std::cout<<"Escoga una de las fichas del Jugador 2: ";
+                int i,j;
+                std::cin>>i>>j;
+
+                uint32_t bitMap1 = 0x80000000>>(j*5+i);
+
+                //Ver vecinos
+
+                if (game.Player2&bitMap1)
+                {
+                    std::cout<<"Estos son tus posibles movimientos: ";
+                    std::cout<<std::endl;
+
+                    veci = vecinos(bitMap1, game);
+
+                    print(veci, game, true);
+
+                    game.Player2^=bitMap1;
+                    game.FullBoard^=bitMap1;
+
+                    break;
+
+                }
+
+                else{
+                    std::cout<<"No existe una ficha del Jugador 1 ahi.";
+                    std::cout<<std::endl;
+                }
+            }
+
             //Mover Ficha 
+            while (true)
+            {
+                std::cout<<"Seleccione un movimiento: ";
+                int i,j;
+                std::cin>>i>>j;
+
+                uint32_t moveP2 = 0x80000000>>(j*5+i);
+
+                //Ver vecinos
+
+                if (moveP2&veci)
+                {
+                    std::cout<<"Estos son tus posibles movimientos: ";
+                    std::cout<<std::endl;
+
+                    game.Player2|= moveP2;
+                    game.FullBoard|= game.Player2;
+
+                    print(game.FullBoard, game, false); 
+                    Turno1 = true;
+                    break;
+
+                }
+
+                else{
+                    std::cout<<"Moviemiento no valido";
+                    std::cout<<std::endl;
+                }
+            }
 
 
 
-            //Poner Piso
-
-
-
-        }
+        }*/
     }
     
     
