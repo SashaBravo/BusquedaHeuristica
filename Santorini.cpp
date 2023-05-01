@@ -39,6 +39,7 @@ struct GameState
 
     uint32_t Player1=0x1;
     uint32_t Player2=0x0;
+    uint32_t Floor0=0xffffffff;
     uint32_t Floor1=0x0;
     uint32_t Floor2=0x0;
     uint32_t Floor3=0x0;
@@ -70,10 +71,10 @@ void print(uint32_t board, GameState game, bool vecinos){
         cout<<BG_YELLOW;
         }
         if(one&game.Floor3){
-        cout<<BG_WHITE;
+        cout<<BG_CYAN;
         }
         if(one&game.Floor4){
-        cout<<BG_CYAN;
+        cout<<BG_WHITE;
         }
         cout << "[";
         if(one&board){
@@ -117,10 +118,10 @@ void print(uint32_t board, GameState game, bool vecinos){
         cout<<BG_YELLOW;
         }
         if(one&game.Floor3){
-        cout<<BG_WHITE;
+        cout<<BG_CYAN;
         }
         if(one&game.Floor4){
-        cout<<BG_CYAN;
+        cout<<BG_WHITE;
         }
 
         cout << "]";
@@ -134,19 +135,63 @@ void print(uint32_t board, GameState game, bool vecinos){
 }
 
 uint32_t vecinos(uint32_t board, GameState game){
-    uint32_t vecinoDerecha=(board&~lastCol)>>1;
-    uint32_t vecinoIzquierda=(board&~firstCol)<<1;
+    uint32_t vecinoDerecha=(board&~lastCol&~game.Floor4)>>1;
+    uint32_t vecinoIzquierda=(board&~firstCol&~game.Floor4)<<1;
     
-    uint32_t vecinoArriba=(board&~firstRow)<<5;
-    uint32_t vecinoArribaD=(board&~firstRow&~lastCol)<<4;
-    uint32_t vecinoArribaI=(board&~firstRow&~firstCol)<<6;
+    uint32_t vecinoArriba=(board&~firstRow&~game.Floor4)<<5;
+    uint32_t vecinoArribaD=(board&~firstRow&~lastCol&~game.Floor4)<<4;
+    uint32_t vecinoArribaI=(board&~firstRow&~firstCol&~game.Floor4)<<6;
     
-    uint32_t vecinoAbajo=(board&~lastRow)>>5;
-    uint32_t vecinoAbajoD=(board&~lastRow&~lastCol)>>6;
-    uint32_t vecinoAbajoI=(board&~lastRow&~firstCol)>>4;
+    uint32_t vecinoAbajo=(board&~lastRow&~game.Floor4)>>5;
+    uint32_t vecinoAbajoD=(board&~lastRow&~lastCol&~game.Floor4)>>6;
+    uint32_t vecinoAbajoI=(board&~lastRow&~firstCol&~game.Floor4)>>4;
     return (vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI)&~game.FullBoard;
 
 }
+
+uint32_t vecinos2(uint32_t Floor, GameState game){
+    
+    if (Floor == game.Floor3)
+    {
+        cout<<"Ganaste";
+        return game.Floor3|game.Floor2|game.Floor1|game.Floor0;
+    }
+    else if (Floor == game.Floor2)
+    {
+        return game.Floor3|game.Floor2|game.Floor1|game.Floor0;
+    }
+    else if (Floor == game.Floor1)
+    {
+        return (game.Floor2|game.Floor1|game.Floor0)&~game.Floor3;
+    }
+    else
+    {
+        return (game.Floor1|game.Floor0)&~game.Floor2&~game.Floor3;
+    }
+
+
+}
+
+uint32_t ActualFloor(uint32_t player, GameState game){
+
+    if(player&game.Floor3){
+        cout<<"Ganaste";
+        return game.Floor3;
+    }
+    if(player&game.Floor2){
+        cout<<"Estas en el piso 2"<<endl;
+        return game.Floor2;
+    }
+    if(player&game.Floor1){
+        cout<<"Estas en el piso 1" <<endl;
+        return game.Floor1;
+    }
+
+    cout<<"Esats en el piso 0" <<endl;
+
+    return game.Floor0;
+}
+
 void Building(uint32_t& Player_board, GameState& game_){
 
     uint32_t veci = 0x0;
@@ -158,16 +203,25 @@ void Building(uint32_t& Player_board, GameState& game_){
     std::cout<<"Seleccione donde construir: ";
     int i,j;
     std::cin>>i>>j;
-    uint32_t moveP = 0x80000000>>(j*5+i);
-    if(moveP&veci)
+    uint32_t buildP = 0x80000000>>(j*5+i);
+    if(buildP&veci)
     {
-        game_.Floor1|= moveP;
-        //game_.FullBoard|= game_.Floor1;
+        if(buildP&game_.Floor1)
+        {
+            if(buildP&game_.Floor2)
+            {
+                if(buildP&game_.Floor3)
+                {
+                    game_.Floor4|= buildP;
+                }
+                game_.Floor3|= buildP;
+            }
+            game_.Floor2|= buildP;
+        }
+        game_.Floor1|= buildP;
     }
-    else{
-        cout <<" "<< endl;
-    }
-    cout << "-------------" << endl;
+
+    
     print(game_.FullBoard, game_, false);
 }
 
@@ -195,6 +249,12 @@ void Move(uint32_t& Player_board, GameState& game_, uint32_t& veci)
             game_.FullBoard|= Player_board;
 
             print(game_.FullBoard, game_, false); 
+
+            if(moveP&game.Floor3){
+                cout<<"Ganaste";
+                break;
+            }
+
             cout << "Build" << endl;
             Building(moveP,game_);
             break;
@@ -212,6 +272,8 @@ void Move(uint32_t& Player_board, GameState& game_, uint32_t& veci)
 void SelectToken(uint32_t& Player_board, GameState& game_)
 {
     uint32_t veci = 0x0;
+    uint32_t veci2 = 0x0;
+    uint32_t floor = 0x0;
     while (true)
     {
         std::cout<<"Escoga una de las fichas del Jugador: ";
@@ -227,13 +289,18 @@ void SelectToken(uint32_t& Player_board, GameState& game_)
             std::cout<<"Estos son tus posibles movimientos: ";
             std::cout<<std::endl;
 
-            veci = vecinos(bitMap, game_);
+            floor = ActualFloor(bitMap, game_);
+            veci = vecinos(bitMap, game_);      //Vecinos donde no hay jugadores, borde o piso 4
 
-            print(veci, game_, true);
+            veci2 = vecinos2(floor, game_);      //Vecinos de piso+1 e inferiores
+
+            uint32_t aux_veci = veci&veci2;
+
+            print(veci&veci2, game_, true);
 
             Player_board^=bitMap;
             game_.FullBoard^=bitMap;
-            Move(Player_board, game_, veci);
+            Move(Player_board, game_, aux_veci);
             break;
         }
 
@@ -320,8 +387,6 @@ int main(){
         print(game.FullBoard, game, false);
     }
 
-
-
     //Juego
 
     while (Jugando)
@@ -335,178 +400,7 @@ int main(){
         }else{
             std::cout<<"Jugador 2.";
         SelectToken(game.Player2, game);
-        //print(game.FullBoard, game, false);
-        //Move(game.Player2, game);
         Turno1 = true;
         }
-                   
-        /*
-        if(Turno1){
-
-            auto veci = 0x0;
-
-            //Escoger Ficha
-            while (true)
-            {
-                std::cout<<"Escoga una de las fichas del Jugador 1: ";
-                int i,j;
-                std::cin>>i>>j;
-
-                uint32_t bitMap1 = 0x80000000>>(j*5+i);
-
-                //Ver vecinos
-
-                if (game.Player1&bitMap1)
-                {
-                    std::cout<<"Estos son tus posibles movimientos: ";
-                    std::cout<<std::endl;
-
-                    veci = vecinos(bitMap1, game);
-
-                    print(veci, game, true);
-
-                    game.Player1^=bitMap1;
-                    game.FullBoard^=bitMap1;
-
-                    break;
-
-                }
-
-                else{
-                    std::cout<<"No existe una ficha del Jugador 1 ahi.";
-                    std::cout<<std::endl;
-                }
-            }
-
-            //Mover Ficha 
-            while (true)
-            {
-                std::cout<<"Seleccione un movimiento: ";
-                int i,j;
-                std::cin>>i>>j;
-
-                uint32_t moveP1 = 0x80000000>>(j*5+i);
-
-                //Ver vecinos
-
-                if (moveP1&veci)
-                {
-                    std::cout<<"Estos son tus posibles movimientos: ";
-                    std::cout<<std::endl;
-
-                    game.Player1|= moveP1;
-                    game.FullBoard|= game.Player1;
-
-                    print(game.FullBoard, game, false); 
-                    Turno1 = false;
-                    break;
-
-                }
-
-                else{
-                    std::cout<<"Moviemiento no valido";
-                    std::cout<<std::endl;
-                }
-                
-            }
-
-            //Poner Piso
-
-
-
-        }
-
-
-        //Jugador 2
-        else{
-
-             auto veci = 0x0;
-
-            //Escoger Ficha
-            while (true)
-            {
-                std::cout<<"Escoga una de las fichas del Jugador 2: ";
-                int i,j;
-                std::cin>>i>>j;
-
-                uint32_t bitMap1 = 0x80000000>>(j*5+i);
-
-                //Ver vecinos
-
-                if (game.Player2&bitMap1)
-                {
-                    std::cout<<"Estos son tus posibles movimientos: ";
-                    std::cout<<std::endl;
-
-                    veci = vecinos(bitMap1, game);
-
-                    print(veci, game, true);
-
-                    game.Player2^=bitMap1;
-                    game.FullBoard^=bitMap1;
-
-                    break;
-
-                }
-
-                else{
-                    std::cout<<"No existe una ficha del Jugador 1 ahi.";
-                    std::cout<<std::endl;
-                }
-            }
-
-            //Mover Ficha 
-            while (true)
-            {
-                std::cout<<"Seleccione un movimiento: ";
-                int i,j;
-                std::cin>>i>>j;
-
-                uint32_t moveP2 = 0x80000000>>(j*5+i);
-
-                //Ver vecinos
-
-                if (moveP2&veci)
-                {
-                    std::cout<<"Estos son tus posibles movimientos: ";
-                    std::cout<<std::endl;
-
-                    game.Player2|= moveP2;
-                    game.FullBoard|= game.Player2;
-
-                    print(game.FullBoard, game, false); 
-                    Turno1 = true;
-                    break;
-
-                }
-
-                else{
-                    std::cout<<"Moviemiento no valido";
-                    std::cout<<std::endl;
-                }
-            }
-
-
-
-        }*/
-
     }
-    
-    
-
-
-
-
-    //print(firstRow);
-    //print(lastRow);
-/*
-//Imprimendo Columnas
-    // uint32_t col1=0x84210842;
-    // print(col1);
-
-    // uint32_t col2=0x42108421;
-    // print(col2);
-
-    // uint32_t col3=0x21084210;
-*/
 }
