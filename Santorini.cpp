@@ -32,6 +32,7 @@ uint32_t firstCol=0x84210842;
 uint32_t lastCol=0x08421084;
 
 
+bool Jugando = true;
 
 struct GameState
 {
@@ -187,7 +188,7 @@ uint32_t ActualFloor(uint32_t player, GameState game){
         return game.Floor1;
     }
 
-    cout<<"Esats en el piso 0" <<endl;
+    cout<<"Estas en el piso 0" <<endl;
 
     return game.Floor0;
 }
@@ -250,8 +251,8 @@ void Move(uint32_t& Player_board, GameState& game_, uint32_t& veci)
 
             print(game_.FullBoard, game_, false); 
 
-            if(moveP&game.Floor3){
-                cout<<"Ganaste";
+            if(moveP&game_.Floor3){
+                Jugando = false;
                 break;
             }
 
@@ -318,7 +319,6 @@ int main(){
 
     bool Turno1 = true;
     bool Colocacion = true;
-    bool Jugando = true;
 
     //Colocacion de Jugadores
     
@@ -403,4 +403,15 @@ int main(){
         Turno1 = true;
         }
     }
+
+    cout<<"Ganador: Jugador ";
+    if (!Turno1)
+    {
+        cout<<"1" <<endl;
+    }
+    else
+    {
+        cout<<"2" <<endl;
+    }
+    
 }
