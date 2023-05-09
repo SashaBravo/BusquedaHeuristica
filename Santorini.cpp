@@ -146,31 +146,25 @@ uint32_t vecinos(uint32_t board, GameState game){
     uint32_t vecinoAbajo=(board&~lastRow&~game.Floor4)>>5;
     uint32_t vecinoAbajoD=(board&~lastRow&~lastCol&~game.Floor4)>>6;
     uint32_t vecinoAbajoI=(board&~lastRow&~firstCol&~game.Floor4)>>4;
-    return (vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI)&~game.FullBoard;
 
+    return (vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI)&~game.FullBoard;
 }
 
 uint32_t vecinos2(uint32_t Floor, GameState game){
     
-    if (Floor == game.Floor3)
-    {
+    if (Floor == game.Floor3){
         cout<<"Ganaste";
         return game.Floor3|game.Floor2|game.Floor1|game.Floor0;
     }
-    else if (Floor == game.Floor2)
-    {
+    else if (Floor == game.Floor2){
         return game.Floor3|game.Floor2|game.Floor1|game.Floor0;
     }
-    else if (Floor == game.Floor1)
-    {
+    else if (Floor == game.Floor1){
         return (game.Floor2|game.Floor1|game.Floor0)&~game.Floor3;
     }
-    else
-    {
+    else{
         return (game.Floor1|game.Floor0)&~game.Floor2&~game.Floor3;
     }
-
-
 }
 
 uint32_t ActualFloor(uint32_t player, GameState game){
@@ -312,26 +306,71 @@ void SelectToken(uint32_t& Player_board, GameState& game_)
     }
 }
 
+int win_positions(GameState game, uint32_t player) {
+    int count = 0;
+    uint32_t playerMask = player == game.Player1 ? game.Player1 : game.Player2;
+    uint32_t otherPlayerMask = player == game.Player1 ? game.Player2 : game.Player1;
+    
+    // Comprobamos las posiciones ganadoras de las dos fichas del jugador
+    for (int i = 0; i < 2; i++) {
+
+        uint32_t firstBit = 32-__builtin_ffs(playerMask);
+        playerMask ^= firstBit;
+
+        if((firstBit>>1&game.Floor3)&~firstCol) count++;
+        if((firstBit<<1&game.Floor3)&~lastCol) count++;
+        if((firstBit<<4&game.Floor3)&~firstRow&~lastCol) count++;
+        if((firstBit>>4&game.Floor3)&~lastRow&~firstCol) count++;
+        if((firstBit<<5&game.Floor3)&~firstRow) count++;
+        if((firstBit>>5&game.Floor3)&~lastRow) count++;
+        if((firstBit<<6&game.Floor3)&~firstRow&~firstCol) count++;
+        if((firstBit>>6&game.Floor3)&~lastRow&~lastCol) count++;        
+        
+        uint32_t Op_firstBit = 32-__builtin_ffs(otherPlayerMask);
+        otherPlayerMask ^= Op_firstBit;
+
+        if((Op_firstBit>>1&game.Floor3)&~firstCol) count--;
+        if((Op_firstBit<<1&game.Floor3)&~lastCol) count--;
+        if((Op_firstBit<<4&game.Floor3)&~firstRow&~lastCol) count--;
+        if((Op_firstBit>>4&game.Floor3)&~lastRow&~firstCol) count--;
+        if((Op_firstBit<<5&game.Floor3)&~firstRow) count--;
+        if((Op_firstBit>>5&game.Floor3)&~lastRow) count--;
+        if((Op_firstBit<<6&game.Floor3)&~firstRow&~firstCol) count--;
+        if((Op_firstBit>>6&game.Floor3)&~lastRow&~lastCol) count--;   
+    }
+    return count;
+}
+
+int count_set_bits(uint32_t moves)
+{
+    int count = 0;
+    while (moves != 0) {
+        moves &= (moves - 1);
+        count++;
+    }
+    return count;
+}
+
 int evaluate(const GameState& state, uint32_t player) {
     uint32_t opponent = player == state.Player1 ? state.Player2 : state.Player1;
 
     // Count the number of winning positions for the player and opponent
-    int player_win_positions = count_winning_positions(state, player);
-    int opponent_win_positions = count_winning_positions(state, opponent);
+    int player_win = win_positions(state, player);
+    int opponent_win = win_positions(state, opponent);
 
     // Evaluate the difference in number of winning positions
-    int win_positions_score = (player_win_positions - opponent_win_positions) * 1000;
+    int win_score = (player_win - opponent_win) * 1000;
 
     // Evaluate the difference in number of movable positions for each player
-    int movable_positions_score = 0;
-    uint32_t player_movables = get_movable_positions(state, player);
-    uint32_t opponent_movables = get_movable_positions(state, opponent);
-    int player_movables_count = count_set_bits(player_movables);
-    int opponent_movables_count = count_set_bits(opponent_movables);
-    if (player_movables_count > opponent_movables_count) {
-        movable_positions_score = (player_movables_count - opponent_movables_count) * 10;
-    } else if (player_movables_count < opponent_movables_count) {
-        movable_positions_score = (player_movables_count - opponent_movables_count) * -10;
+    int moves_score = 0;
+    uint32_t player_moves = vecinos(player, state)& vecinos2(ActualFloor(player, state), state);
+    uint32_t opponent_moves = vecinos(opponent, state)& vecinos2(ActualFloor(opponent, state), state);
+    int p_moves_count = count_set_bits(player_moves);
+    int o_moves_count = count_set_bits(opponent_moves);
+    if (p_moves_count > o_moves_count) {
+        moves_score = (p_moves_count - o_moves_count) * 10;
+    } else if (p_moves_count < o_moves_count) {
+        moves_score = (p_moves_count - o_moves_count) * -10;
     }
 
     // Evaluate the difference in the heights of all positions for each player
@@ -340,15 +379,15 @@ int evaluate(const GameState& state, uint32_t player) {
         uint32_t position = 0x1 << i;
         if (state.Floor0 & position) {
             if (state.Player1 & position) {
-                heights_score += 5;
+                heights_score += 1;
             } else if (state.Player2 & position) {
-                heights_score -= 5;
+                heights_score -= 1;
             }
         } else if (state.Floor1 & position) {
             if (state.Player1 & position) {
-                heights_score += 4;
+                heights_score += 2;
             } else if (state.Player2 & position) {
-                heights_score -= 4;
+                heights_score -= 2;
             }
         } else if (state.Floor2 & position) {
             if (state.Player1 & position) {
@@ -358,24 +397,23 @@ int evaluate(const GameState& state, uint32_t player) {
             }
         } else if (state.Floor3 & position) {
             if (state.Player1 & position) {
-                heights_score += 2;
+                heights_score += 4;
             } else if (state.Player2 & position) {
-                heights_score -= 2;
+                heights_score -= 4;
             }
         } else if (state.Floor4 & position) {
             if (state.Player1 & position) {
-                heights_score += 1;
+                heights_score += 5;
             } else if (state.Player2 & position) {
-                heights_score -= 1;
+                heights_score -= 5;
             }
         }
     }
 
-    // Compute the total score for the player
-    int total_score = win_positions_score + movable_positions_score + heights_score;
+    int total_score = win_score + moves_score + heights_score;
     return player == state.Player1 ? total_score : -total_score;
 }
-
+/*
 
 int negamax(GameState state, int depth, int alpha, int beta, int player) {
     if (depth == 0) {
@@ -408,7 +446,7 @@ int negamax(GameState state, int depth, int alpha, int beta, int player) {
 
     return maxScore;
 }
-
+*/
 int main(){
 
     GameState game;
@@ -485,7 +523,7 @@ int main(){
     }
 
     //Juego
-
+    cout << evaluate(game, game.Player1) << endl ;
     while (Jugando)
     {
         //Jugador 1
