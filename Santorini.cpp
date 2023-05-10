@@ -1,4 +1,9 @@
 #include <iostream>
+#include <stddef.h>
+#include <limits>
+#include <cstdlib>
+#include <vector>
+
 using namespace std;
 
 #define RESET "\033[0m"
@@ -38,7 +43,7 @@ struct GameState
 {
     uint32_t FullBoard=0x0;
 
-    uint32_t Player1=0x1;
+    uint32_t Player1=0x0;
     uint32_t Player2=0x0;
     uint32_t Floor0=0xffffffff;
     uint32_t Floor1=0x0;
@@ -220,67 +225,77 @@ void Building(uint32_t& Player_board, GameState& game_){
     print(game_.FullBoard, game_, false);
 }
 
-void Move(uint32_t& Player_board, GameState& game_, uint32_t& veci)
-{
+void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M)
+{           
+        cout<<"Seleccione un movimiento: " << endl;
 
-    while(true){
-            
-        std::cout<<"Seleccione un movimiento: ";
-        int i,j;
-        std::cin>>i>>j;
+        uint32_t moveP = next_M;
+        
+        Player_board|= moveP;
+        game_.FullBoard|= Player_board;
 
-        uint32_t moveP = 0x80000000>>(j*5+i);
+        print(game_.FullBoard, game_, false); 
 
-        //Ver vecinos
-        //print(game_.Player1, game_, false);
-        //print(game_.Player2, game_, false);
-
-        if (moveP&veci)
-        {
-            std::cout<<"Estos son tus posibles movimientos: ";
-            std::cout<<std::endl;
-            
-            Player_board|= moveP;
-            game_.FullBoard|= Player_board;
-
-            print(game_.FullBoard, game_, false); 
-
-            if(moveP&game_.Floor3){
-                Jugando = false;
-                break;
-            }
-
-            cout << "Build" << endl;
-            Building(moveP,game_);
-            break;
-
+        if(moveP&game_.Floor3){
+            Jugando = false;
         }
 
-        else{
-            std::cout<<"Moviemiento no valido";
-            std::cout<<std::endl;
-        }
-                
-    }
+        // sacarlo
+        //cout << "Build" << endl;
+        // Building(moveP,game_);
+
+
 }
 
-void SelectToken(uint32_t& Player_board, GameState& game_)
+GameState Apply_Move(uint32_t Player_board, GameState game_, uint32_t next_M)
+{           
+        cout<<"Seleccione un movimiento: " << endl;
+
+        uint32_t moveP = next_M;
+        
+        Player_board|= moveP;
+        game_.FullBoard|= Player_board;
+
+        print(game_.FullBoard, game_, false); 
+
+        if(moveP&game_.Floor3){
+            Jugando = false;
+        }
+
+    return game_;
+}
+
+uint32_t SelectToken(uint32_t& Player_board, GameState& game_)
 {
     uint32_t veci = 0x0;
     uint32_t veci2 = 0x0;
     uint32_t floor = 0x0;
-    while (true)
-    {
-        std::cout<<"Escoga una de las fichas del Jugador: ";
-        int i,j;
-        std::cin>>i>>j;
 
-        uint32_t bitMap = 0x80000000>>(j*5+i);
+        std::cout<<"Escoga una de las fichas del Jugador: " << endl;
 
+        // dejarlo bonito
+
+        uint32_t TurnPlayer = Player_board;
+        auto token = 32-__builtin_ffs(TurnPlayer);
+        uint32_t t1 = 0x80000000>>token;
+        TurnPlayer ^= t1;
+        auto token2 = 32-__builtin_ffs(TurnPlayer);
+        uint32_t t2 =   0x80000000>>token2;
+
+        int a = rand() % 2;
+        uint32_t bitMap;
+        if(a==0){ bitMap = t1;}
+        else{ bitMap = t2;}
+        
+        //uint32_t bitMap = 0x80000000>>token;
+        //uint32_t 
+        print(bitMap, game_, false); 
+
+    
+        std::cout<<std::endl;
         //Ver vecinos
 
-        if (Player_board&bitMap)
-        {
+
             std::cout<<"Estos son tus posibles movimientos: ";
             std::cout<<std::endl;
 
@@ -295,15 +310,24 @@ void SelectToken(uint32_t& Player_board, GameState& game_)
 
             Player_board^=bitMap;
             game_.FullBoard^=bitMap;
-            Move(Player_board, game_, aux_veci);
-            break;
-        }
+            // Move(Player_board, game_, aux_veci);
+            // break;
 
-        else{
-            std::cout<<"No existe una ficha del Jugador ahi.";
-            std::cout<<std::endl;
-        }
+    return aux_veci;
+}
+
+vector<uint32_t> generate_moves(uint32_t& possible_mov) {
+    vector<uint32_t> moves;
+    
+    while(possible_mov){
+        
+        auto move = 32-__builtin_ffs(possible_mov);
+        uint32_t aux_move = 0x80000000>>move;
+        possible_mov ^= aux_move;
+        moves.push_back(aux_move);
+
     }
+    return moves;
 }
 
 int win_positions(GameState game, uint32_t player) {
@@ -314,7 +338,8 @@ int win_positions(GameState game, uint32_t player) {
     // Comprobamos las posiciones ganadoras de las dos fichas del jugador
     for (int i = 0; i < 2; i++) {
 
-        uint32_t firstBit = 32-__builtin_ffs(playerMask);
+        auto aux = 32-__builtin_ffs(playerMask);
+        uint32_t firstBit = 0x80000000>>aux;
         playerMask ^= firstBit;
 
         if((firstBit>>1&game.Floor3)&~firstCol) count++;
@@ -326,7 +351,8 @@ int win_positions(GameState game, uint32_t player) {
         if((firstBit<<6&game.Floor3)&~firstRow&~firstCol) count++;
         if((firstBit>>6&game.Floor3)&~lastRow&~lastCol) count++;        
         
-        uint32_t Op_firstBit = 32-__builtin_ffs(otherPlayerMask);
+        auto Op_aux = 32-__builtin_ffs(otherPlayerMask);
+        uint32_t Op_firstBit = 0x80000000>>Op_aux;
         otherPlayerMask ^= Op_firstBit;
 
         if((Op_firstBit>>1&game.Floor3)&~firstCol) count--;
@@ -413,21 +439,24 @@ int evaluate(const GameState& state, uint32_t player) {
     int total_score = win_score + moves_score + heights_score;
     return player == state.Player1 ? total_score : -total_score;
 }
-/*
 
+/*
 int negamax(GameState state, int depth, int alpha, int beta, int player) {
     if (depth == 0) {
         return evaluate(state, player);
     }
 
     int maxScore = std::numeric_limits<int>::min();
-    uint32_t moves = generate_moves(state, player);
+  //****  uint32_t moves = generate_moves(state, player);
+        uint32_t aux = 32-__builtin_ffs(player);
+        uint32_t vec = vecinos(aux, state)&vecinos2(aux, state);
+        uint32_t movess = Move(aux, state, vec);
 
-    while (moves) {
-        uint32_t move = moves & -moves;
-        moves ^= move;
+    while (movess) {
+        uint32_t move = movess & -movess;
+        movess ^= move;
 
-        GameState newState = apply_move(state, move, player);
+        //GameState newState = apply_move(state, move, player);
         int score = -negamax(newState, depth - 1, -beta, -alpha, 1 - player);
 
         if (score >= beta) {
@@ -447,10 +476,12 @@ int negamax(GameState state, int depth, int alpha, int beta, int player) {
     return maxScore;
 }
 */
+
 int main(){
 
     GameState game;
     //GameState* game_ = &game;
+    srand((unsigned) time(NULL));
 
     bool Turno1 = true;
     bool Colocacion = true;
@@ -463,9 +494,10 @@ int main(){
         if(Turno1){
             while (true)
             {
-                std::cout<<"Ingrese coordenadas Jugador 1: ";
-                int i,j;
-                std::cin>>i>>j;
+                std::cout<<"Ingrese coordenadas Jugador 1: " << endl;
+                int i = rand() % 5;
+                int j = rand() % 5;
+                //std::cin>>i>>j;
             
                 if (game.FullBoard != (game.FullBoard |= 0x80000000>>(j*5+i)))
                 {
@@ -490,9 +522,10 @@ int main(){
 
             while (true)
             {
-                std::cout<<"Ingrese coordenadas Jugador 2: ";
-                int i,j;
-                std::cin>>i>>j;
+                std::cout<<"Ingrese coordenadas Jugador 2: " << endl;
+                int i = rand() % 5;
+                int j = rand() % 5;
+                //std::cin>>i>>j;
                 if (game.FullBoard != (game.FullBoard |= 0x80000000>>(j*5+i)))
                 {
                     game.Player2 |= 0x80000000>>(j*5+i);
@@ -523,18 +556,34 @@ int main(){
     }
 
     //Juego
-    cout << evaluate(game, game.Player1) << endl ;
+       // negamax(game, 2, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), game.Player1);
+
     while (Jugando)
     {
         //Jugador 1
 
         if(Turno1){
             std::cout<<"Jugador 1.";
-        SelectToken(game.Player1, game);
+            uint32_t a = SelectToken(game.Player1, game);
+            auto b = generate_moves(a);
+            /*
+            for (auto x : b)
+            {
+                print(x, game, true);
+                cout << endl;
+            }
+            break;*/
+
+
+            Move(game.Player1, game, b[0]);
+        //SelectToken(game.Player1, game);
         Turno1 = false;
         }else{
             std::cout<<"Jugador 2.";
-        SelectToken(game.Player2, game);
+            uint32_t m = SelectToken(game.Player2, game);
+            auto n = generate_moves(m);
+            Move(game.Player2, game, n[0]);
+        //SelectToken(game.Player2, game);
         Turno1 = true;
         }
     }
