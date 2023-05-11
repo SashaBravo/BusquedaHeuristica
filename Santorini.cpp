@@ -52,19 +52,6 @@ struct GameState
     uint32_t Floor4=0x0;
 };
 
-/*
-//Colores
-std::string red = "\033[1;31m";     //Piso0
-std::string green = "\033[1;32m";   //Piso1
-std::string cyan = "\033[1;36m";    //Piso2
-
-std::string cyan_b = "\033[46m";    //Piso3
-std::string white_b = "\033[47m";   //Piso4
-
-std::string clear_color = "\033[0m";
-
-*/
-
 
 void print(uint32_t board, GameState game, bool vecinos){
     uint32_t one=0x80000000;
@@ -187,7 +174,7 @@ uint32_t ActualFloor(uint32_t player, GameState game){
         return game.Floor1;
     }
 
-    cout<<"Estas en el piso 0" <<endl;
+    //cout<<"Estas en el piso 0" <<endl;
 
     return game.Floor0;
 }
@@ -225,42 +212,46 @@ void Building(uint32_t& Player_board, GameState& game_){
     print(game_.FullBoard, game_, false);
 }
 
-void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M)
-{           
-        cout<<"Seleccione un movimiento: " << endl;
+void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M, uint32_t token)
+{       
+    cout<<"Seleccione un movimiento: " << endl;
+/*
+    Player_board^=token;
+    game_.FullBoard^=token;*/
 
-        uint32_t moveP = next_M;
-        
-        Player_board|= moveP;
-        game_.FullBoard|= Player_board;
+    uint32_t moveP = next_M;
+    
+    Player_board|= moveP;
+    game_.FullBoard|= Player_board;
 
-        print(game_.FullBoard, game_, false); 
 
-        if(moveP&game_.Floor3){
-            Jugando = false;
-        }
+    print(game_.FullBoard, game_, false); 
 
-        // sacarlo
-        //cout << "Build" << endl;
-        // Building(moveP,game_);
+    if(moveP&game_.Floor3){
+        Jugando = false;
+    }
+
+    // sacarlo
+    //cout << "Build" << endl;
+    // Building(moveP,game_);
 
 
 }
 
 GameState Apply_Move(uint32_t Player_board, GameState game_, uint32_t next_M)
 {           
-        cout<<"Seleccione un movimiento: " << endl;
+    //cout<<"Seleccione un movimiento: " << endl;
 
-        uint32_t moveP = next_M;
-        
-        Player_board|= moveP;
-        game_.FullBoard|= Player_board;
+    uint32_t moveP = next_M;
+    
+    Player_board|= moveP;
+    game_.FullBoard|= Player_board;
 
-        print(game_.FullBoard, game_, false); 
+    //print(game_.FullBoard, game_, false); 
 
-        if(moveP&game_.Floor3){
-            Jugando = false;
-        }
+    if(moveP&game_.Floor3){
+        Jugando = false;
+    }
 
     return game_;
 }
@@ -405,15 +396,15 @@ int evaluate(const GameState& state, uint32_t player) {
         uint32_t position = 0x1 << i;
         if (state.Floor0 & position) {
             if (state.Player1 & position) {
-                heights_score += 1;
+                heights_score += 5;
             } else if (state.Player2 & position) {
-                heights_score -= 1;
+                heights_score -= 5;
             }
         } else if (state.Floor1 & position) {
             if (state.Player1 & position) {
-                heights_score += 2;
+                heights_score += 4;
             } else if (state.Player2 & position) {
-                heights_score -= 2;
+                heights_score -= 4;
             }
         } else if (state.Floor2 & position) {
             if (state.Player1 & position) {
@@ -423,15 +414,15 @@ int evaluate(const GameState& state, uint32_t player) {
             }
         } else if (state.Floor3 & position) {
             if (state.Player1 & position) {
-                heights_score += 4;
+                heights_score += 2;
             } else if (state.Player2 & position) {
-                heights_score -= 4;
+                heights_score -= 2;
             }
         } else if (state.Floor4 & position) {
             if (state.Player1 & position) {
-                heights_score += 5;
+                heights_score += 1;
             } else if (state.Player2 & position) {
-                heights_score -= 5;
+                heights_score -= 1;
             }
         }
     }
@@ -440,42 +431,75 @@ int evaluate(const GameState& state, uint32_t player) {
     return player == state.Player1 ? total_score : -total_score;
 }
 
-/*
-int negamax(GameState state, int depth, int alpha, int beta, int player) {
+int negamax(GameState state, int depth, int alpha, int beta, bool player) {
     if (depth == 0) {
         return evaluate(state, player);
     }
 
-    int maxScore = std::numeric_limits<int>::min();
-  //****  uint32_t moves = generate_moves(state, player);
-        uint32_t aux = 32-__builtin_ffs(player);
-        uint32_t vec = vecinos(aux, state)&vecinos2(aux, state);
-        uint32_t movess = Move(aux, state, vec);
+    int max_Score = std::numeric_limits<int>::min();
 
-    while (movess) {
-        uint32_t move = movess & -movess;
-        movess ^= move;
+    uint32_t aux = 32-__builtin_ffs(player);
+    uint32_t vec = vecinos(aux, state)&vecinos2(aux, state);
 
-        //GameState newState = apply_move(state, move, player);
-        int score = -negamax(newState, depth - 1, -beta, -alpha, 1 - player);
+    auto movess = generate_moves(vec);
+
+    uint32_t ActualPlayer = 0x0;
+
+    if(player){
+        ActualPlayer = state.Player1;
+    }
+    else{
+        ActualPlayer = state.Player2;
+    }
+
+    for (auto moveAux : movess) {
+        
+        GameState newMove = Apply_Move(ActualPlayer, state, moveAux);
+
+        int score = -negamax(newMove, depth - 1, -beta, -alpha, !player);
 
         if (score >= beta) {
             return score;
         }
 
-        if (score > maxScore) {
-            maxScore = score;
+        if (score > max_Score) {
+            max_Score = score;
             alpha = std::max(alpha, score);
         }
 
         if (alpha >= beta) {
             break;
         }
-    }
+        
+    }   
 
-    return maxScore;
+    cout<<max_Score<<endl;
+
+    return max_Score;
 }
-*/
+
+uint32_t get_bestMove(uint32_t& Player_board, GameState& game_, bool Turno, int depth)
+{
+    uint32_t best_move = 0x0;
+    int best_score = std::numeric_limits<int>::min();
+
+    //uint32_t token = SelectToken(game_.Player1, game_);
+    auto tokenMove = generate_moves(Player_board);
+
+    for (auto moveAux : tokenMove) {
+            
+        GameState newMove = Apply_Move(Player_board, game_, moveAux);
+        
+        int score = -negamax(newMove, depth - 1, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), Turno);
+
+        if (score > best_score) {
+            best_move = moveAux;
+            best_score = score;
+        }
+        
+    }
+    return best_move;
+}
 
 int main(){
 
@@ -485,6 +509,8 @@ int main(){
 
     bool Turno1 = true;
     bool Colocacion = true;
+
+    int MaxDepth = 4;
 
     //Colocacion de Jugadores
     
@@ -552,8 +578,10 @@ int main(){
             }
         }
 
-        print(game.FullBoard, game, false);
+        
     }
+
+    print(game.FullBoard, game, false);
 
     //Juego
        // negamax(game, 2, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), game.Player1);
@@ -562,11 +590,16 @@ int main(){
     {
         //Jugador 1
 
-        if(Turno1){
+        if(Turno1)
+        {
             std::cout<<"Jugador 1.";
+            uint32_t token = SelectToken(game.Player1, game);
+            
+            auto bestMove = get_bestMove(token, game, Turno1, MaxDepth);
+            /*
             uint32_t a = SelectToken(game.Player1, game);
             auto b = generate_moves(a);
-            /*
+            
             for (auto x : b)
             {
                 print(x, game, true);
@@ -574,17 +607,30 @@ int main(){
             }
             break;*/
 
+            
 
-            Move(game.Player1, game, b[0]);
-        //SelectToken(game.Player1, game);
-        Turno1 = false;
-        }else{
+            Move(game.Player1, game, bestMove, token);
+
+           
+            //SelectToken(game.Player1, game);
+            Turno1 = false;
+        }
+
+        else
+        {
             std::cout<<"Jugador 2.";
+
+            uint32_t token = SelectToken(game.Player2, game);
+            auto bestMove = get_bestMove(token, game, Turno1, MaxDepth);
+
+            /*
             uint32_t m = SelectToken(game.Player2, game);
             auto n = generate_moves(m);
-            Move(game.Player2, game, n[0]);
-        //SelectToken(game.Player2, game);
-        Turno1 = true;
+            */
+            Move(game.Player2, game, bestMove, token);
+            //SelectToken(game.Player2, game);
+            Turno1 = true;
+            break;
         }
     }
 
