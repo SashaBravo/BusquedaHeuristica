@@ -33,9 +33,11 @@ bool boolean = true;
 
 //auxiliares de las fichas a evaluar
 uint32_t var1;          
-uint32_t var2;          
+uint32_t var2;   
+uint32_t varbuild;          
 uint32_t aux_var1;      
 uint32_t aux_var2;
+uint32_t aux_varbuild;
 
 
 //Estructura principal del tablero
@@ -144,6 +146,8 @@ vector<uint32_t> SelectToken(uint32_t Player_board, GameState game_, bool isMove
     //Para Moves
     if(isMove)
     {  
+        var1 = 0x0;
+        var2 = 0x0;
         uint32_t TurnPlayer = Player_board;
 
         auto token = 32-__builtin_ffs(TurnPlayer);
@@ -173,13 +177,13 @@ vector<uint32_t> SelectToken(uint32_t Player_board, GameState game_, bool isMove
     
     //Para Builds
     else{
-        var1 = 0x0;
+        varbuild = 0x0;
         uint32_t TurnPlayer = Player_board;
 
         auto token = 32-__builtin_ffs(TurnPlayer);
         uint32_t t1 = 0x80000000>>token;
-        var1 = t1;
-        if(isN){aux_var1 = var1;}
+        varbuild = t1;
+        if(isN){aux_varbuild = varbuild;}
         uint32_t veci1_1 = vecinos(t1, game_);      //Vecinos donde no hay jugadores, borde o piso 4
         auxVector.push_back(veci1_1);
     }
@@ -237,9 +241,10 @@ GameState Apply_Building(GameState game_, uint32_t next_M){
 
 //Aplica el mejor movimiento encontrado
 void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M, bool auxFicha, bool Turno1, int MaxDepth, bool alpha)
-{       
+{      
+    //print(game_.FullBoard, game_, false); 
     uint32_t moveP = next_M;
-
+    
     if(auxFicha)
     {
         Player_board^=var1;
@@ -250,6 +255,8 @@ void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M, bool auxFic
         Player_board^=var2;
         game_.FullBoard^=var2;
     }
+
+    
 
     Player_board|= moveP;
     game_.FullBoard|= Player_board;
@@ -262,33 +269,28 @@ void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M, bool auxFic
     }
 
     auto token = SelectToken(next_M, game_, false, false);
-    get_bestMove(token, game_, Turno1, MaxDepth, auxFicha, false, alpha);
+    get_bestMove(token, game_, Turno1, MaxDepth, true, false, alpha);
 }
 
 //Simula un movimiento
 GameState Apply_Move(uint32_t Player_board, GameState game_, uint32_t next_M, bool token, bool isN)
 {           
-    if(isN)
-    {    
-        if(token)
-        {
+    if(isN){    
+        if(token){
             Player_board^=aux_var1;
             game_.FullBoard^=aux_var1;
         }
-        else
-        {
+        else{
             Player_board^=aux_var2;
             game_.FullBoard^=aux_var2;
         }
     }
     else{
-        if(token)
-        {
+        if(token){
             Player_board^=var1;
             game_.FullBoard^=var1;
         }
-        else
-        {
+        else{
             Player_board^=var2;
             game_.FullBoard^=var2;
         }
@@ -447,7 +449,7 @@ int eva_Build(const GameState state, uint32_t player) {
     int score = 0;
     if (isBitOnFloor1) { score += 1; }
     if (isBitOnFloor2) { score += 2; }
-    if (isBitOnFloor3) { score += 5; }// Si ya se ha construido el piso 3, incrementar el puntaje
+    if (isBitOnFloor3) { score += 5; } // Si ya se ha construido el piso 3, incrementar el puntaje
     if (isBitOnFloor4) { score -= 3; } // Si ya se ha construido el piso 4, decrementar el puntaje 
     if (isBitOnFloor3 && !isBitOnFloor4) { score += blockWeight; }// Verificar si se bloquea al rival al llegar al piso 3 
     
@@ -456,12 +458,11 @@ int eva_Build(const GameState state, uint32_t player) {
     return score;
 }
 
-int AlphaBeta(GameState state, int depth, int alpha, int beta, bool player, bool isBuild, bool isN) {
+int AlphaBeta(GameState state, int depth, int alpha, int beta, bool player, bool isBuild, bool isN, uint32_t fichaMovida) {
     if (depth == 0) {
         if(isBuild){ return eva_Build(state, player); }
         else{ return evaluate(state, player); }
     }
-
     int score;
     int max_Score = std::numeric_limits<int>::min();
     uint32_t ActualPlayer = 0x0;
@@ -471,6 +472,12 @@ int AlphaBeta(GameState state, int depth, int alpha, int beta, bool player, bool
 
     if(isBuild)
     {
+        
+        if(boolean) { fichaMovida = var1;}
+        else { fichaMovida = var2;}
+
+        ActualPlayer &= fichaMovida;
+        
         auto token = SelectToken(ActualPlayer, state, false, isN);
 
         auto movess = generate_moves(token[0]);
@@ -478,7 +485,7 @@ int AlphaBeta(GameState state, int depth, int alpha, int beta, bool player, bool
             for (auto moveAux : movess)
             {
                 GameState newMove = Apply_Building(state, moveAux);
-                score = -AlphaBeta(newMove, depth - 1, -beta, -alpha, !player, true, true);
+                score = -AlphaBeta(newMove, depth - 1, -beta, -alpha, !player, false, true, fichaMovida);
                 if (score >= beta) { return score; }
                 if (score > max_Score) {
                     max_Score = score;
@@ -500,7 +507,7 @@ int AlphaBeta(GameState state, int depth, int alpha, int beta, bool player, bool
                 for (auto moveAux : movess) 
                 {
                     GameState newMove = Apply_Move(ActualPlayer, state, moveAux, boolean3, isN);
-                    score = AlphaBeta(newMove, depth - 1, alpha, beta, player, false, true);
+                    score = AlphaBeta(newMove, depth - 1, alpha, beta, player, true, true, moveAux);
                     if (score >= beta) { return score; }
                     if (score > max_Score) {
                         max_Score = score;
@@ -589,7 +596,7 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
                 {
                     GameState newMove = Apply_Move(ActualPlayer, game_, moveAux, boolean, false);
 
-                    if(isAlphaNega){ score = AlphaBeta(newMove, depth - 1 , std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), Turno, true, true); }
+                    if(isAlphaNega){ score = AlphaBeta(newMove, depth - 1 , std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), Turno, true, true, moveAux); }
                     else{ score = negamax(newMove, depth - 1, Turno, true, true); }
                     
                     if (score > best_score) {
@@ -599,6 +606,7 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
                     }
                 }
             }
+            
             if(best_move == var1){ best_move = var2;}
             boolean = false;
         }
@@ -612,19 +620,18 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
     
     else
     {
-        best_move = var1;
+        best_move = varbuild;
         auto tokenMove = generate_moves(Player_board[0]);
         if(!tokenMove.empty())
         {
             for (auto moveAux : tokenMove) 
             {
                 GameState newMove = Apply_Building(game_, moveAux);
-                if(isAlphaNega){ score = -AlphaBeta(newMove, depth - 1 , std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), Turno, true, true); }
+                if(isAlphaNega){ score = -AlphaBeta(newMove, depth - 1 , std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), Turno, true, true, moveAux); }
                 else{ score = -negamax(newMove, depth - 1, Turno, true, true); }
 
                 if (score > best_score) {
                     best_move = moveAux;
-                    auxFicha = boolean;
                     best_score = score;
                 }
             }
@@ -642,7 +649,7 @@ int main(){
     bool Turno1 = true;
     bool Colocacion = true;
 
-    int MaxDepth = 1;
+    int MaxDepth = 2;
 
     //Colocacion de Jugadores
     bool pawn1 = true;
@@ -694,12 +701,13 @@ int main(){
             auto token = SelectToken(game.Player1, game, true, false);
             get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, true);
             Turno1 = false;
+            
         }
         else{
             std::cout<<"Jugador 2."<<endl;
             bool auxFicha = true;
             auto token = SelectToken(game.Player2, game, true, false);
-            get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, false);
+            get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, true);
             Turno1 = true;
         }
     }
@@ -707,4 +715,6 @@ int main(){
 
     if (!Turno1){ cout<<"1" <<endl; }
     else{ cout<<"2" <<endl; }
+
+    print(game.FullBoard, game, false);
 }
