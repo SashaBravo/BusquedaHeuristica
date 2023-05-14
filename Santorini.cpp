@@ -6,19 +6,13 @@
 
 using namespace std;
 
+/*Colores a Utilizar*/
 #define RESET "\033[0m"
 #define RED "\033[31m"
 #define GREEN "\033[32m"
-#define YELLOW "\033[33m"
 #define BLUE "\033[34m"
-#define MAGENTA "\033[35m"
-#define CYAN "\033[36m"
-#define WHITE "\033[37m"
 #define BG_BLACK "\033[40m"
-#define BG_RED "\033[41m"
-#define BG_GREEN "\033[42m"
 #define BG_YELLOW "\033[43m"
-#define BG_BLUE "\033[44m"
 #define BG_MAGENTA "\033[45m"
 #define BG_CYAN "\033[46m"
 #define BG_WHITE "\033[47m"
@@ -33,19 +27,21 @@ uint32_t borde=0xfc631f80;
 uint32_t firstCol=0x84210842;
 uint32_t lastCol=0x08421084;
 
-bool Jugando = true;
-
-uint32_t var1;
-uint32_t var2;
-
-uint32_t aux_var1;
-uint32_t aux_var2;
-
+bool Jugando = true;    //variable de juego
 bool boolean = true;
 
+
+//auxiliares de las fichas a evaluar
+uint32_t var1;          
+uint32_t var2;          
+uint32_t aux_var1;      
+uint32_t aux_var2;
+
+
+//Estructura principal del tablero
 struct GameState
 {
-    uint32_t FullBoard=0x0;
+    uint32_t FullBoard=0x0; //Contiene ambos jugadores
 
     uint32_t Player1=0x0;
     uint32_t Player2=0x0;
@@ -56,77 +52,48 @@ struct GameState
     uint32_t Floor4=0x0;
 };
 
-//Funciones 
+/*Funciones Declaradas*/
+void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, int depth, bool auxFicha, bool isMove, bool alpha);
 
-void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, int depth, bool auxFicha, bool isMove);
 
-
+/*Funciones de Juegos*/
+//Imprimir el tablero con jugadores y pisos
 void print(uint32_t board, GameState game, bool vecinos){
     uint32_t one=0x80000000;
     for(int i=0;i<25;i++){
+
         cout << BG_BLACK;
-        if(one&game.Floor1){
-        cout<<BG_MAGENTA;
-        }
-        if(one&game.Floor2){
-        cout<<BG_YELLOW;
-        }
-        if(one&game.Floor3){
-        cout<<BG_CYAN;
-        }
-        if(one&game.Floor4){
-        cout<<BG_WHITE;
-        }
+        if(one&game.Floor1){ cout<<BG_MAGENTA; }
+        if(one&game.Floor2){ cout<<BG_YELLOW; }
+        if(one&game.Floor3){ cout<<BG_CYAN; }
+        if(one&game.Floor4){ cout<<BG_WHITE; }
         cout << "[";
+
         if(one&board){
-
             if(!vecinos){
-                if(one&game.Player1){
-                    std::cout<<BLUE<<"o"<< RESET << BG_BLACK;
-                }
-
-                 if(one&game.Player2){
-                    std::cout<<BLUE<<"x"<< RESET << BG_BLACK;
-                }
-
-                //else { std::cout<<BLUE<<" " << RESET << BG_BLACK;}
+                if(one&game.Player1){ std::cout<<BLUE<<"o"<< RESET << BG_BLACK; }
+                if(one&game.Player2){ std::cout<<BLUE<<"x"<< RESET << BG_BLACK; }
             }
             else{
-                if(one&~game.FullBoard){
-                    std::cout<<GREEN<<"v"<< RESET << BG_BLACK;
-                }
-                else{
-                    std::cout<< RED<<"f"<< RESET << BG_BLACK;
-                }     
+                if(one&~game.FullBoard){ std::cout<<GREEN<<"v"<< RESET << BG_BLACK; }
+                else{ std::cout<< RED<<"f"<< RESET << BG_BLACK; }     
             }
         }
-        else{
-            std::cout<<" "<< RESET << BG_BLACK;
-        }
+        else{ std::cout<<" "<< RESET << BG_BLACK; }
 
-        if(one&game.Floor1){
-        cout<<BG_MAGENTA;
-        }
-        if(one&game.Floor2){
-        cout<<BG_YELLOW;
-        }
-        if(one&game.Floor3){
-        cout<<BG_CYAN;
-        }
-        if(one&game.Floor4){
-        cout<<BG_WHITE;
-        }
-
+        if(one&game.Floor1){ cout<<BG_MAGENTA; }
+        if(one&game.Floor2){ cout<<BG_YELLOW; }
+        if(one&game.Floor3){ cout<<BG_CYAN; }
+        if(one&game.Floor4){ cout<<BG_WHITE; }
         cout << "]";
-        if(i%5==4){
-            std::cout<<RESET<<std::endl;
-        }
+
+        if(i%5==4){ std::cout<<RESET<<std::endl; }
         one >>= 1;
-        
     }
     std::cout<<std::endl;
 }
 
+//Obtiene los bits (casillas) alrededor del jugador devolviendo un bitboard sin considerar el piso 4 ni donde ya hay jugadores
 uint32_t vecinos(uint32_t board, GameState game){
     uint32_t vecinoDerecha=(board&~lastCol)>>1;
     uint32_t vecinoIzquierda=(board&~firstCol)<<1;
@@ -142,67 +109,47 @@ uint32_t vecinos(uint32_t board, GameState game){
     return (vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI)&~game.FullBoard;
 }
 
+//Obtiene los bits (casillas) de todos los pisos a los que se puede mover 
 uint32_t vecinos2(uint32_t Floor, GameState game){
 
     uint32_t Pisos = 0x0;
+    if (Floor == game.Floor3){ Pisos = (game.Floor3|game.Floor2|game.Floor1|game.Floor0)&~game.Floor4; }
 
-    if (Floor == game.Floor3){
-        //cout<<"Ganaste";
-        Pisos = (game.Floor3|game.Floor2|game.Floor1|game.Floor0)&~game.Floor4;
-        //return 0x0;
-    }
-    else if (Floor == game.Floor2){
-        Pisos = (game.Floor3|game.Floor2|game.Floor1|game.Floor0)&~game.Floor4;
-    }
-    else if (Floor == game.Floor1){
-        Pisos = (game.Floor2|game.Floor1|game.Floor0)&~(game.Floor3|game.Floor4);
-    }
-    else{
-        Pisos = (game.Floor1|game.Floor0)&~(game.Floor2|game.Floor3|game.Floor4);
-    }
+    else if (Floor == game.Floor2){ Pisos = (game.Floor3|game.Floor2|game.Floor1|game.Floor0)&~game.Floor4; }
+
+    else if (Floor == game.Floor1){ Pisos = (game.Floor2|game.Floor1|game.Floor0)&~(game.Floor3|game.Floor4); }
+
+    else{ Pisos = (game.Floor1|game.Floor0)&~(game.Floor2|game.Floor3|game.Floor4); }
 
     return Pisos;
 }
 
+//Devuelve el piso en donde se encuentra la ficha por la que se pregunta
 uint32_t ActualFloor(uint32_t player, GameState game){
 
-    if(player&game.Floor3){
-        return game.Floor3;
-    }
-    if(player&game.Floor2){
-        return game.Floor2;
-    }
-    if(player&game.Floor1){
-        return game.Floor1;
-    }
+    if(player&game.Floor3){ return game.Floor3; }
+    if(player&game.Floor2){ return game.Floor2; }
+    if(player&game.Floor1){ return game.Floor1; }
 
     return game.Floor0;
 }
 
+//Obtiene los vecinos en comun de vecinos() y vecinos2() de cada ficha
 vector<uint32_t> SelectToken(uint32_t Player_board, GameState game_, bool isMove, bool isN)
 {
     vector<uint32_t> auxVector;
     uint32_t aux_veci1 = 0x0;
     uint32_t aux_veci2 = 0x0;
 
-    
-
     //Para Moves
     if(isMove)
     {  
-        //  var1 = 0x0;
-        // var2 = 0x0;
-
-        // aux_var1 = 0x0;
-        // aux_var2 = 0x0;
-
         uint32_t TurnPlayer = Player_board;
 
         auto token = 32-__builtin_ffs(TurnPlayer);
         uint32_t t1 = 0x80000000>>token;
         var1 = t1;
         if(isN){aux_var1 = var1;}
-
 
         uint32_t floor1 = ActualFloor(t1, game_);
         uint32_t veci1_1 = vecinos(t1, game_);      //Vecinos donde no hay jugadores, borde o piso 4
@@ -217,7 +164,6 @@ vector<uint32_t> SelectToken(uint32_t Player_board, GameState game_, bool isMove
 
         var2 = t2;
         if(isN){aux_var2 = var2;}
-        //var2 = t2;
         uint32_t floor2 = ActualFloor(t2, game_);
         uint32_t veci2_1 = vecinos(t2, game_);      //Vecinos donde no hay jugadores, borde o piso 4
         uint32_t veci2_2 = vecinos2(floor2, game_);      //Vecinos de piso+1 e inferiores
@@ -225,7 +171,6 @@ vector<uint32_t> SelectToken(uint32_t Player_board, GameState game_, bool isMove
         auxVector.push_back(aux_veci2);
     }
     
-
     //Para Builds
     else{
         var1 = 0x0;
@@ -242,6 +187,7 @@ vector<uint32_t> SelectToken(uint32_t Player_board, GameState game_, bool isMove
     return auxVector;
 }
 
+//Construye un piso
 void Building(GameState& game_, uint32_t next_M){
     uint32_t buildP = next_M;
 
@@ -262,9 +208,9 @@ void Building(GameState& game_, uint32_t next_M){
     }
     game_.Floor1|= buildP;
     game_.Floor0^= buildP;
-    
 }
 
+//Simula la construccion de un piso
 GameState Apply_Building(GameState game_, uint32_t next_M){
     uint32_t buildP = next_M;
 
@@ -289,7 +235,8 @@ GameState Apply_Building(GameState game_, uint32_t next_M){
     return game_;
 }
 
-void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M, bool auxFicha, bool Turno1, int MaxDepth)
+//Aplica el mejor movimiento encontrado
+void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M, bool auxFicha, bool Turno1, int MaxDepth, bool alpha)
 {       
     uint32_t moveP = next_M;
 
@@ -315,12 +262,10 @@ void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M, bool auxFic
     }
 
     auto token = SelectToken(next_M, game_, false, false);
-    get_bestMove(token, game_, Turno1, MaxDepth, auxFicha, false);
-
-    // auto token = SelectToken(Player_board, game_, false);
-    // get_bestMove(token, game_, Turno1, MaxDepth, auxFicha, true);
+    get_bestMove(token, game_, Turno1, MaxDepth, auxFicha, false, alpha);
 }
 
+//Simula un movimiento
 GameState Apply_Move(uint32_t Player_board, GameState game_, uint32_t next_M, bool token, bool isN)
 {           
     if(isN)
@@ -355,20 +300,21 @@ GameState Apply_Move(uint32_t Player_board, GameState game_, uint32_t next_M, bo
     return game_;
 }
 
+//Convierte un bitboard de vecinos en un vector con cada uno por separado
 vector<uint32_t> generate_moves(uint32_t possible_mov) {
     vector<uint32_t> moves;
 
     while(possible_mov){
         auto move = 32-__builtin_ffs(possible_mov);
 
-            uint32_t aux_move = 0x80000000>>move;
-            possible_mov ^= aux_move;
-            moves.push_back(aux_move);
-        
+        uint32_t aux_move = 0x80000000>>move;
+        possible_mov ^= aux_move;
+        moves.push_back(aux_move);
     }
     return moves;
 }
 
+//Cuenta las posiciones de victoria al rededor de una ficha (piso 3)
 int win_positions(GameState game, uint32_t player) {
     int count = 0;
     uint32_t playerMask = player == game.Player1 ? game.Player1 : game.Player2;
@@ -406,6 +352,7 @@ int win_positions(GameState game, uint32_t player) {
     return count;
 }
 
+//Obtiene los bits encendidos
 int count_set_bits(uint32_t moves)
 {
     int count = 0;
@@ -416,6 +363,7 @@ int count_set_bits(uint32_t moves)
     return count;
 }
 
+//Calcula el puntaje de los movimientos de los jugadores
 int evaluate(const GameState state, uint32_t player) {
     uint32_t opponent = player == state.Player1 ? state.Player2 : state.Player1;
 
@@ -478,8 +426,9 @@ int evaluate(const GameState state, uint32_t player) {
     return player == state.Player1 ? total_score : -total_score;
 }
 
+//Calcula el puntaje de las contrucciones de los jugadores
 int eva_Build(const GameState state, uint32_t player) {
-    const int proximityWeight = 1;   // Peso de la proximidad al piso 3
+    //const int proximityWeight = 1;   // Peso de la proximidad al piso 3
     const int blockWeight = 5;       // Peso de bloquear al rival
 
     // Bitmaps de los pisos
@@ -496,36 +445,77 @@ int eva_Build(const GameState state, uint32_t player) {
 
     // Puntaje de evaluación basado en la construcción de pisos y bloqueo al rival
     int score = 0;
-    if (isBitOnFloor1) {
-        score += 1;
-    }
-    if (isBitOnFloor2) {
-        score += 2;
-    }
-    if (isBitOnFloor3) {
-        // Si ya se ha construido el piso 3, incrementar el puntaje
-        score += 5;
-    }
-    if (isBitOnFloor4) {
-        // Si ya se ha construido el piso 4, decrementar el puntaje
-        score -= 3;
-    }
-
-    // Verificar si se bloquea al rival al llegar al piso 3
-    if (isBitOnFloor3 && !isBitOnFloor4) {
-        score += blockWeight;
-    }
-
-    // Si el jugador actual es el jugador 2, invertir el puntaje
-    if (player == 2) {
-        score = -score;
-    }
+    if (isBitOnFloor1) { score += 1; }
+    if (isBitOnFloor2) { score += 2; }
+    if (isBitOnFloor3) { score += 5; }// Si ya se ha construido el piso 3, incrementar el puntaje
+    if (isBitOnFloor4) { score -= 3; } // Si ya se ha construido el piso 4, decrementar el puntaje 
+    if (isBitOnFloor3 && !isBitOnFloor4) { score += blockWeight; }// Verificar si se bloquea al rival al llegar al piso 3 
+    
+    if (player == 2) { score = -score; }// Si el jugador actual es el jugador 2, invertir el puntaje
 
     return score;
 }
 
+int AlphaBeta(GameState state, int depth, int alpha, int beta, bool player, bool isBuild, bool isN) {
+    if (depth == 0) {
+        if(isBuild){ return eva_Build(state, player); }
+        else{ return evaluate(state, player); }
+    }
 
-int negamax(GameState state, int depth, int alpha, int beta, bool player, bool isBuild, bool isN) {
+    int score;
+    int max_Score = std::numeric_limits<int>::min();
+    uint32_t ActualPlayer = 0x0;
+    
+    if(player){ ActualPlayer = state.Player1; }
+    else{ ActualPlayer = state.Player2; }
+
+    if(isBuild)
+    {
+        auto token = SelectToken(ActualPlayer, state, false, isN);
+
+        auto movess = generate_moves(token[0]);
+        if(!movess.empty()){
+            for (auto moveAux : movess)
+            {
+                GameState newMove = Apply_Building(state, moveAux);
+                score = -AlphaBeta(newMove, depth - 1, -beta, -alpha, !player, true, true);
+                if (score >= beta) { return score; }
+                if (score > max_Score) {
+                    max_Score = score;
+                    alpha = std::max(alpha, score);
+                }
+                if (alpha >= beta) { break; }
+            }   
+        }
+    }
+    
+    else
+    {
+        auto token = SelectToken(ActualPlayer, state, true, isN);
+        bool boolean3 = true;
+        for (auto tokenAux : token)
+        {
+            auto movess = generate_moves(tokenAux);
+            if(!movess.empty()){
+                for (auto moveAux : movess) 
+                {
+                    GameState newMove = Apply_Move(ActualPlayer, state, moveAux, boolean3, isN);
+                    score = AlphaBeta(newMove, depth - 1, alpha, beta, player, false, true);
+                    if (score >= beta) { return score; }
+                    if (score > max_Score) {
+                        max_Score = score;
+                        alpha = std::max(alpha, score);
+                    }
+                    if (alpha >= beta) { break; }
+                }   
+            }
+            boolean3 = false;
+        }
+    }
+    return max_Score;
+}
+
+int negamax(GameState state, int depth, bool player, bool isBuild, bool isN) {
     if (depth == 0) {
         if(isBuild){
             return eva_Build(state, player);
@@ -539,41 +529,18 @@ int negamax(GameState state, int depth, int alpha, int beta, bool player, bool i
     int max_Score = std::numeric_limits<int>::min();
     uint32_t ActualPlayer = 0x0;
     
-
-    if(player){
-        ActualPlayer = state.Player1;
-    }
-    else{
-        ActualPlayer = state.Player2;
-    }
+    if(player){ ActualPlayer = state.Player1; }
+    else{ ActualPlayer = state.Player2; }
 
     if(isBuild)
     {
         auto token = SelectToken(ActualPlayer, state, false, isN);
-
-        
-            auto movess = generate_moves(token[0]);
-            if(!movess.empty()){
+        auto movess = generate_moves(token[0]);
+        if(!movess.empty()){
             for (auto moveAux : movess) {
-                
-                //GameState newMove = Apply_Move(ActualPlayer, state, moveAux, true, isN);
                 GameState newMove = Apply_Building(state, moveAux);
-
-                score = -negamax(newMove, depth - 1, -beta, -alpha, !player, true, true);
-
-                if (score >= beta) {
-                    return score;
-                }
-
-                if (score > max_Score) {
-                    max_Score = score;
-                    alpha = std::max(alpha, score);
-                }
-
-                if (alpha >= beta) {
-                    break;
-                }
-                
+                score = -negamax(newMove, depth - 1, !player, true, true);
+                if (score > max_Score) { max_Score = score; }
             }   
         }
 
@@ -585,39 +552,22 @@ int negamax(GameState state, int depth, int alpha, int beta, bool player, bool i
         bool boolean3 = true;
         for (auto tokenAux : token)
         {
-            
             auto movess = generate_moves(tokenAux);
             if(!movess.empty()){
-            for (auto moveAux : movess) {
-                
-                GameState newMove = Apply_Move(ActualPlayer, state, moveAux, boolean3, isN);
-
-                score = negamax(newMove, depth - 1, alpha, beta, player, false, true);
-
-                if (score >= beta) {
-                    return score;
-                }
-
-                if (score > max_Score) {
-                    max_Score = score;
-                    alpha = std::max(alpha, score);
-                }
-
-                if (alpha >= beta) {
-                    break;
-                }
-                
-            }   
+                for (auto moveAux : movess) {
+                    GameState newMove = Apply_Move(ActualPlayer, state, moveAux, boolean3, isN);
+                    score = negamax(newMove, depth - 1, player, false, true);
+                    if (score > max_Score) { max_Score = score; }
+                }   
             }
             boolean3 = false;
         }
     }
-
-
     return max_Score;
 }
 
-void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, int depth, bool auxFicha, bool isMove)
+//Obtiene la mejor jugada de cada jugador (movimiento y contruccion)
+void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, int depth, bool auxFicha, bool isMove, bool isAlphaNega)
 {
     int score;
     uint32_t best_move = 0x0;
@@ -626,12 +576,9 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
     
     uint32_t ActualPlayer = 0x0;
 
-    if(Turno){
-        ActualPlayer = game_.Player1;
-    }
-    else{
-        ActualPlayer = game_.Player2;
-    }
+    if(Turno){ ActualPlayer = game_.Player1; }
+    else{ ActualPlayer = game_.Player2; }
+
     if(isMove){
         best_move = var1;
         for (auto token : Player_board)
@@ -642,8 +589,9 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
                 {
                     GameState newMove = Apply_Move(ActualPlayer, game_, moveAux, boolean, false);
 
-                    score = negamax(newMove, depth - 1 , std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), Turno, true, true);
-
+                    if(isAlphaNega){ score = AlphaBeta(newMove, depth - 1 , std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), Turno, true, true); }
+                    else{ score = negamax(newMove, depth - 1, Turno, true, true); }
+                    
                     if (score > best_score) {
                         best_move = moveAux;
                         auxFicha = boolean;
@@ -651,20 +599,14 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
                     }
                 }
             }
-
             if(best_move == var1){ best_move = var2;}
             boolean = false;
         }
 
         if(best_move == var2){Jugando = false; cout<<"lose"<< endl;}
 
-        if(Turno){
-            Move(game_.Player1, game_, best_move, auxFicha, Turno, depth);
-        }
-        else{
-            Move(game_.Player2, game_, best_move, auxFicha, Turno, depth);
-        }
-        
+        if(Turno){ Move(game_.Player1, game_, best_move, auxFicha, Turno, depth, isAlphaNega); }
+        else{ Move(game_.Player2, game_, best_move, auxFicha, Turno, depth, isAlphaNega); }
     }
     
     
@@ -672,21 +614,21 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
     {
         best_move = var1;
         auto tokenMove = generate_moves(Player_board[0]);
-        if(!tokenMove.empty()){
-        for (auto moveAux : tokenMove) {
+        if(!tokenMove.empty())
+        {
+            for (auto moveAux : tokenMove) 
+            {
+                GameState newMove = Apply_Building(game_, moveAux);
+                if(isAlphaNega){ score = -AlphaBeta(newMove, depth - 1 , std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), Turno, true, true); }
+                else{ score = -negamax(newMove, depth - 1, Turno, true, true); }
 
-            //GameState newMove = Apply_Move(ActualPlayer, game_, moveAux, true, false);
-            GameState newMove = Apply_Building(game_, moveAux);
-            score = -negamax(newMove, depth - 1 , std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), Turno, false, true);
-
-            if (score > best_score) {
-                best_move = moveAux;
-                auxFicha = boolean;
-                best_score = score;
+                if (score > best_score) {
+                    best_move = moveAux;
+                    auxFicha = boolean;
+                    best_score = score;
+                }
             }
         }
-        }
-        
         Building(game_, best_move);
     }
     
@@ -703,7 +645,6 @@ int main(){
     int MaxDepth = 1;
 
     //Colocacion de Jugadores
-    
     bool pawn1 = true;
     while (Colocacion)
     {
@@ -736,60 +677,34 @@ int main(){
                     break;
                 }
             }
-
             Turno1 = true;
-
             if (pawn1) { pawn1 = false; }
             else { Colocacion = false; }
         }
     }
-
     print(game.FullBoard, game, false);
 
     //Juego
     while (Jugando)
     {
         //Jugador 1
-        if(Turno1)
-        {
+        if(Turno1){
             std::cout<<"Jugador 1."<<endl;
-            
             bool auxFicha = true;
-
             auto token = SelectToken(game.Player1, game, true, false);
-            get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true);
-
+            get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, true);
             Turno1 = false;
-            //break;
         }
-
-        else
-        {
+        else{
             std::cout<<"Jugador 2."<<endl;
-
             bool auxFicha = true;
-            
             auto token = SelectToken(game.Player2, game, true, false);
-            get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true);
-
+            get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, false);
             Turno1 = true;
-            //break;
         }
     }
-
-    // print(var1, game, false);
-    // print(aux_var1, game, false);
-    // print(var2, game, false);
-    // print(aux_var2, game, false);
- 
     cout<<"Ganador: Jugador ";
-    if (!Turno1)
-    {
-        cout<<"1" <<endl;
-    }
-    else
-    {
-        cout<<"2" <<endl;
-    }
-    //print(game.FullBoard, game, false);
+
+    if (!Turno1){ cout<<"1" <<endl; }
+    else{ cout<<"2" <<endl; }
 }
