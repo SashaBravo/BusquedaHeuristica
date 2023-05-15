@@ -1,3 +1,7 @@
+//Para ejecutar se debe utilizar ./Santorini
+//Para cambiar la profundidad, esta está en el Main
+
+
 #include <iostream>
 #include <stddef.h>
 #include <limits>
@@ -254,7 +258,7 @@ void Building(GameState& game_, uint32_t next_M){
     game_.Floor1|= buildP;
     game_.Floor0^= buildP;
 
-    print(game_.FullBoard, game_, false);
+    //print(game_.FullBoard, game_, false);
 }
 
 //Simula la construccion de un piso
@@ -325,7 +329,7 @@ void Move(uint32_t& Player_board, GameState& game_, uint32_t next_M, bool auxFic
     Player_board|= moveP;
     game_.FullBoard|= Player_board;
 
-    print(game_.FullBoard, game_, false); 
+    //print(game_.FullBoard, game_, false); 
 
     if(moveP&game_.Floor3){
         Jugando = false;
@@ -752,6 +756,7 @@ int main(){
 
     int MaxDepth = 8;
 
+    std::cout<<endl<<"Tablero Inicial"<<endl;
     //Colocacion de Jugadores
     bool pawn1 = true;
     while (Colocacion)
@@ -804,7 +809,7 @@ int main(){
         //Jugador 1
         if(Turno1){
             auto start = std::chrono::high_resolution_clock::now();
-            std::cout<<"Jugador 1."<<endl;
+            //std::cout<<"Jugador 1."<<endl;
             bool auxFicha = true;
             auto token = SelectToken(game.Player1, game, true, false);
             get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, true);
@@ -815,7 +820,7 @@ int main(){
         }
         else{
             auto start = std::chrono::high_resolution_clock::now();
-            std::cout<<"Jugador 2."<<endl;
+            //std::cout<<"Jugador 2."<<endl;
             bool auxFicha = true;
             auto token = SelectToken(game.Player2, game, true, false);
             get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, false);
