@@ -1,3 +1,4 @@
+//Para compilar:     g++ -Wall -Wextra -o3 Santorini.cpp -o Santorini
 //Para ejecutar se debe utilizar ./Santorini
 //Para cambiar la profundidad, esta está en el Main
 
