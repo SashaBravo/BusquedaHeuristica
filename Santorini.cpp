@@ -513,11 +513,11 @@ int eva_Build(const GameState state, uint32_t player) {
     int score = 0;
     if (isBitOnFloor1) { score += 1; }
     if (isBitOnFloor2) { score += 2; }
-    if (isBitOnFloor3) { score += 5; } // Si ya se ha construido el piso 3, incrementar el puntaje
-    if (isBitOnFloor4) { score -= 3; } // Si ya se ha construido el piso 4, decrementar el puntaje 
+    if (isBitOnFloor3) { score += 0; } // Si ya se ha construido el piso 3, incrementar el puntaje
+    if (isBitOnFloor4) { score = 0; } // Si ya se ha construido el piso 4, decrementar el puntaje 
     if (isBitOnFloor3 && !isBitOnFloor4) { score += blockWeight; }// Verificar si se bloquea al rival al llegar al piso 3 
     
-    if (player == 2) { score = -score; }// Si el jugador actual es el jugador 2, invertir el puntaje
+    if (player == state.Player2) { score = -score; }// Si el jugador actual es el jugador 2, invertir el puntaje
 
     return score;
 }
@@ -655,7 +655,9 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
     else{ ActualPlayer = game_.Player2; }
 
     if(isMove){
-        best_move = var1;
+        if(Turno){ best_move = var1; }
+        else{ best_move = var2_1; }
+        
         for (auto token : Player_board)
         {           
             auto tokenMove = generate_moves(token);
@@ -675,11 +677,13 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
                 }
             }
             
-            if(best_move == var1){ best_move = var2;}
+            if(best_move == var1 && Turno){ best_move = var2;}
+            else if(best_move == var2_1 && !Turno){ best_move = var2_1; }
             boolean = false;
         }
 
-        if(best_move == var2){Jugando = false; cout<<"lose"<< endl;}
+        if(best_move == var2 && Turno){Jugando = false; cout<<"lose"<< endl; return;}
+        if(best_move == var2_2 && !Turno){Jugando = false; cout<<"lose"<< endl; return;}
 
         if(Turno){ Move(game_.Player1, game_, best_move, auxFicha, Turno, depth, isAlphaNega); }
         else{ Move(game_.Player2, game_, best_move, auxFicha, Turno, depth, isAlphaNega); }
@@ -717,7 +721,7 @@ int main(){
     bool Turno1 = true;
     bool Colocacion = true;
 
-    int MaxDepth = 4;
+    int MaxDepth = 2;
 
     //Colocacion de Jugadores
     bool pawn1 = true;
@@ -773,6 +777,7 @@ int main(){
             auto token = SelectToken(game.Player1, game, true, false);
             get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, true);
             Turno1 = false;
+
         }
         else{
             std::cout<<"Jugador 2."<<endl;
@@ -784,7 +789,7 @@ int main(){
     }
     cout<<"Ganador: Jugador ";
 
-    if (!Turno1){ cout<<"1" <<endl; }
+    if (Turno1){ cout<<"1" <<endl; }
     else{ cout<<"2" <<endl; }
 
     print(game.FullBoard, game, false);
