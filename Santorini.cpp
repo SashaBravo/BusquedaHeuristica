@@ -3,6 +3,7 @@
 #include <limits>
 #include <cstdlib>
 #include <vector>
+#include <chrono>
 
 using namespace std;
 
@@ -60,6 +61,12 @@ struct GameState
     uint32_t Floor4=0x0;
 };
 
+
+//Variables para obtener resultados de Ejecucion
+double nodos_revisados_ab = 0;
+double nodos_revisados_n = 0;
+
+
 /*Funciones Declaradas*/
 void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, int depth, bool auxFicha, bool isMove, bool alpha);
 
@@ -114,7 +121,7 @@ uint32_t vecinos(uint32_t board, GameState game){
     uint32_t vecinoAbajoD=(board&~lastRow&~lastCol)>>6;
     uint32_t vecinoAbajoI=(board&~lastRow&~firstCol)>>4;
 
-    return (vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI)&~game.FullBoard;
+    return (vecinoDerecha|vecinoIzquierda|vecinoArriba|vecinoArribaD|vecinoArribaI|vecinoAbajo|vecinoAbajoD|vecinoAbajoI)&~game.FullBoard&~game.Floor4;
 }
 
 //Obtiene los bits (casillas) de todos los pisos a los que se puede mover 
@@ -125,9 +132,9 @@ uint32_t vecinos2(uint32_t Floor, GameState game){
 
     else if (Floor == game.Floor2){ Pisos = (game.Floor3|game.Floor2|game.Floor1|game.Floor0)&~game.Floor4; }
 
-    else if (Floor == game.Floor1){ Pisos = (game.Floor2|game.Floor1|game.Floor0)&~(game.Floor3|game.Floor4); }
+    else if (Floor == game.Floor1){ Pisos = (game.Floor2|game.Floor1|game.Floor0)&~game.Floor3&~game.Floor4; }
 
-    else{ Pisos = (game.Floor1|game.Floor0)&~(game.Floor2|game.Floor3|game.Floor4); }
+    else{ Pisos = (game.Floor1|game.Floor0)&~game.Floor2&~game.Floor3&~game.Floor4; }
 
     return Pisos;
 }
@@ -200,6 +207,8 @@ vector<uint32_t> SelectToken(uint32_t Player_board, GameState game_, bool isMove
         uint32_t veci2_2 = vecinos2(floor2, game_);      //Vecinos de piso+1 e inferiores
         aux_veci2 = veci2_1&veci2_2;
         auxVector.push_back(aux_veci2);
+
+        
     }
     
     //Para Builds
@@ -213,6 +222,7 @@ vector<uint32_t> SelectToken(uint32_t Player_board, GameState game_, bool isMove
         if(isN){aux_varbuild = varbuild;}
         uint32_t veci1_1 = vecinos(t1, game_);      //Vecinos donde no hay jugadores, borde o piso 4
         auxVector.push_back(veci1_1);
+        
     }
     
     return auxVector;
@@ -228,6 +238,10 @@ void Building(GameState& game_, uint32_t next_M){
         {
             if(buildP&game_.Floor3)
             {
+                if(buildP&game_.Floor4)
+                {
+                    cout<<"No puedes construir ahi"<< endl;
+                }
                 game_.Floor4|= buildP;
                 game_.Floor3^= buildP;
             }
@@ -253,6 +267,10 @@ GameState Apply_Building(GameState game_, uint32_t next_M){
         {
             if(buildP&game_.Floor3)
             {
+                if(buildP&game_.Floor4)
+                {
+                    //cout<<"No puedes construir ahi"<< endl;
+                }
                 game_.Floor4|= buildP;
                 game_.Floor3^= buildP;
             }
@@ -476,15 +494,15 @@ int evaluate(const GameState state, uint32_t player) {
             }
         } else if (state.Floor3 & position) {
             if (state.Player1 & position) {
-                heights_score += 4000;
+                heights_score += 4000000;
             } else if (state.Player2 & position) {
-                heights_score -= 4000;
+                heights_score -= 4000000;
             }
         }else if (state.Floor4 & position) {
             if (state.Player1 & position) {
-                heights_score -= 10000;
+                heights_score -= 100;
             } else if (state.Player2 & position) {
-                heights_score += 10000;
+                heights_score += 100;
             }
         }
     }
@@ -531,6 +549,8 @@ int AlphaBeta(GameState state, int depth, int alpha, int beta, bool player, bool
     int score;
     int max_Score = std::numeric_limits<int>::min();
     uint32_t ActualPlayer = 0x0;
+
+    nodos_revisados_ab++;
     
     if(player){ ActualPlayer = state.Player1; }
     else{ ActualPlayer = state.Player2; }
@@ -599,6 +619,8 @@ int negamax(GameState state, int depth, bool player, bool isBuild, bool isN) {
             return evaluate(state, player);
         }
     }
+
+    nodos_revisados_n++;
 
     int score;
     int max_Score = std::numeric_limits<int>::min();
@@ -715,13 +737,20 @@ void get_bestMove(vector<uint32_t>& Player_board, GameState& game_, bool Turno, 
 
 int main(){
 
+    std::chrono::duration<double> duration1;
+    std::chrono::duration<double> duration2;
+
+    std::chrono::duration<double> TotalTime;
+
+    
     GameState game;
+    
     srand((unsigned) time(NULL));
 
     bool Turno1 = true;
     bool Colocacion = true;
 
-    int MaxDepth = 2;
+    int MaxDepth = 8;
 
     //Colocacion de Jugadores
     bool pawn1 = true;
@@ -767,30 +796,53 @@ int main(){
     }
     print(game.FullBoard, game, false);
 
+    auto startTotal = std::chrono::high_resolution_clock::now();
+
     //Juego
     while (Jugando)
     {
         //Jugador 1
         if(Turno1){
+            auto start = std::chrono::high_resolution_clock::now();
             std::cout<<"Jugador 1."<<endl;
             bool auxFicha = true;
             auto token = SelectToken(game.Player1, game, true, false);
             get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, true);
             Turno1 = false;
+            auto end = std::chrono::high_resolution_clock::now();
 
+            duration1 +=end-start;
         }
         else{
+            auto start = std::chrono::high_resolution_clock::now();
             std::cout<<"Jugador 2."<<endl;
             bool auxFicha = true;
             auto token = SelectToken(game.Player2, game, true, false);
-            get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, true);
+            get_bestMove(token, game, Turno1, MaxDepth, auxFicha, true, false);
             Turno1 = true;
+            auto end = std::chrono::high_resolution_clock::now();
+
+            duration2 +=end-start;
         }
     }
+
+    auto endTotal = std::chrono::high_resolution_clock::now();
+
     cout<<"Ganador: Jugador ";
 
-    if (Turno1){ cout<<"1" <<endl; }
+    if (!Turno1){ cout<<"1" <<endl; }
     else{ cout<<"2" <<endl; }
 
     print(game.FullBoard, game, false);
+
+    TotalTime = endTotal-startTotal;
+
+
+    cout << "Profundidad de Busqueda: " << MaxDepth <<endl;
+    cout << "Tiempo de Ejecucion Total: " << TotalTime.count() <<endl;
+    cout << "AlphaBeta: "<<endl;
+    cout << "Nodos revisados: " << nodos_revisados_ab << " - Tiempo transcurrido: " << duration1.count() << " - Nodos por segundo: " << nodos_revisados_ab / duration1.count() <<endl;
+    cout << "NegaMax: "<<endl;
+    cout << "Nodos revisados: " << nodos_revisados_n << " - Tiempo transcurrido: " << duration2.count() << " - Nodos por segundo: " << nodos_revisados_n / duration2.count() <<endl;
+
 }
